@@ -4,5 +4,10 @@
   "block.hunt_generators.pallet": "Доски для перелезания",
   "item.hunt_generators.club": "Дубина",
   "item.hunt_generators.machete": "Мачете",
-  "item.hunt_generators.trap": "Капкан"
+  "item.hunt_generators.trap": "Капкан",
+  "item.hunt_generators.guard_log": "Журнал охранника",
+  "item.hunt_generators.lab_report": "Секретный отчёт № 07",
+  "item.hunt_generators.incident_note": "Записка учёного",
+  "item.hunt_generators.lab_keycard": "Ключ-карта лаборатории (уровень 3)",
+  "item.hunt_generators.uv_lamp": "Ультрафиолетовый фонарь"
 }
