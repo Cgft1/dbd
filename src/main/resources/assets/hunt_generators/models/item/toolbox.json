@@ -1,1 +1,6 @@
-¥ªŞÙ¢ç+iûbµé¿éŞ­«^v×±¶êŞ²V²z½!º{`zw«jÚ+²+^›ûh¢Vè
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "hunt_generators:item/toolbox"
+  }
+}
