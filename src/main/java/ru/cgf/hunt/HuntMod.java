@@ -898,7 +898,10 @@ public class HuntMod implements ModInitializer {
             String role = ROLES.get(p.getUuid());
             if ("survivor".equals(role)) LIVES.put(p.getUuid(), 2);
             else if ("killer".equals(role)) {
-                if (!p.getInventory().insertStack(new ItemStack(MACHETE_ITEM, 1))) p.dropItem(new ItemStack(MACHETE_ITEM, 1), false);
+                ItemStack machete = new ItemStack(MACHETE_ITEM, 1);
+                if (!p.getInventory().insertStack(machete)) p.dropItem(machete, false);
+                ItemStack club = new ItemStack(CLUB_ITEM, 1);
+                if (!p.getInventory().insertStack(club)) p.dropItem(club, false);
             }
             ServerPlayNetworking.send(p, new RolePayload(role));
             var speed = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
