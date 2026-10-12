@@ -20,6 +20,8 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.SwordItem;
+import net.minecraft.item.ToolMaterials;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
@@ -60,6 +62,11 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "trap"), new TrapBlock(Block.Settings.copy(Blocks.IRON_BLOCK).strength(1.0f).nonOpaque()));
     public static final Item TRAP_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "trap"), new BlockItem(TRAP_BLOCK, new Item.Settings()));
+    public static final Item CLUB_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "club"), new Item(new Item.Settings().maxDamage(1)));
+    public static final Item MACHETE_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "machete"), new SwordItem(ToolMaterials.IRON,
+            new Item.Settings().attributeModifiers(SwordItem.createAttributeModifiers(ToolMaterials.IRON, 3, -2.4f))));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -78,6 +85,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> PALLET_BREAKING = new HashMap<>();
     private static final Map<BlockPos, Integer> TRAP_POSITIONS = new HashMap<>();
     private static final Map<UUID, Integer> TRAPPED_TICKS = new HashMap<>();
+    private static final Map<UUID, Integer> STUNNED_TICKS = new HashMap<>();
     private static final Map<UUID, BlockPos> TRAPPED_AT = new HashMap<>();
     private static final Map<UUID, Integer> TRAP_ESCAPE_CLICKS = new HashMap<>();
     private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
@@ -289,6 +297,8 @@ public class HuntMod implements ModInitializer {
                     player.getInventory().insertStack(new ItemStack(FLASHLIGHT_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(PALLET_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(TRAP_ITEM, 3));
+                    player.getInventory().insertStack(new ItemStack(CLUB_ITEM, 1));
+                    if (role.equals("killer")) player.getInventory().insertStack(new ItemStack(MACHETE_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(LOCKER_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(GENERATOR_ITEM, 1));
                     player.sendMessage(Text.literal("ТЕСТОВЫЙ РЕЖИМ: роль " + (role.equals("killer") ? "УБИЙЦА" : "ВЫЖИВШИЙ") + ". Арена и предметы созданы. Прыжок отключён."), false);
@@ -401,26 +411,40 @@ public class HuntMod implements ModInitializer {
         });
 
         AttackEntityCallback.EVENT.register((attacker, world, hand, target, hitResult) -> {
-            if (world.isClient || !running || !(attacker instanceof ServerPlayerEntity killer)
-                    || !(target instanceof ServerPlayerEntity survivor)
-                    || !"killer".equals(ROLES.get(killer.getUuid()))
-                    || !"survivor".equals(ROLES.get(survivor.getUuid()))
-                    || ELIMINATED.contains(survivor.getUuid())) return ActionResult.PASS;
-            UUID sid = survivor.getUuid();
-            int remaining = LIVES.getOrDefault(sid, 2) - 1;
-            LIVES.put(sid, remaining);
+            if (world.isClient || !running || !(attacker instanceof ServerPlayerEntity player)
+                    || !(target instanceof ServerPlayerEntity other)) return ActionResult.PASS;
+            String attackerRole = ROLES.get(player.getUuid());
+            String targetRole = ROLES.get(other.getUuid());
+            if ("survivor".equals(attackerRole) && "killer".equals(targetRole)
+                    && player.getStackInHand(hand).isOf(CLUB_ITEM)) {
+                if (STUNNED_TICKS.containsKey(other.getUuid())) {
+                    player.sendMessage(Text.literal("Маньяк уже оглушён!"), true);
+                    return ActionResult.SUCCESS;
+                }
+                STUNNED_TICKS.put(other.getUuid(), 60);
+                ItemStack club = player.getStackInHand(hand);
+                club.damage(1, player, hand == net.minecraft.util.Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
+                player.sendMessage(Text.literal("Ты оглушил маньяка на 3 секунды! Дубина сломалась."), true);
+                other.sendMessage(Text.literal("Тебя оглушили на 3 секунды!"), true);
+                other.getServerWorld().playSound(null, other.getBlockPos(), SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.PLAYERS, 1.0f, 0.7f);
+                return ActionResult.SUCCESS;
+            }
+            if (!"killer".equals(attackerRole) || !"survivor".equals(targetRole)
+                    || ELIMINATED.contains(other.getUuid())) return ActionResult.PASS;
+            int remaining = LIVES.getOrDefault(other.getUuid(), 2) - 1;
+            LIVES.put(other.getUuid(), remaining);
             if (remaining <= 0) {
-                ELIMINATED.add(sid);
-                survivor.changeGameMode(GameMode.SPECTATOR);
-                survivor.sendMessage(Text.literal("Ты потерял обе жизни и выбыл из раунда."), false);
-                killer.sendMessage(Text.literal("Выживший выбыл!"), true);
+                ELIMINATED.add(other.getUuid());
+                other.changeGameMode(GameMode.SPECTATOR);
+                other.sendMessage(Text.literal("Ты потерял обе жизни и выбыл из раунда."), false);
+                player.sendMessage(Text.literal("Выживший выбыл!"), true);
             } else {
-                survivor.setHealth(survivor.getMaxHealth());
-                survivor.setFireTicks(0);
-                survivor.setInvulnerable(true);
-                survivor.getServerWorld().getServer().execute(() -> survivor.setInvulnerable(false));
-                survivor.sendMessage(Text.literal("Тебя поймали! Осталась 1 жизнь."), false);
-                killer.sendMessage(Text.literal("У выжившего осталась 1 жизнь."), true);
+                other.setHealth(other.getMaxHealth());
+                other.setFireTicks(0);
+                other.setInvulnerable(true);
+                other.getServerWorld().getServer().execute(() -> other.setInvulnerable(false));
+                other.sendMessage(Text.literal("Тебя поймали! Осталась 1 жизнь."), false);
+                player.sendMessage(Text.literal("У выжившего осталась 1 жизнь."), true);
             }
             return ActionResult.SUCCESS;
         });
@@ -448,6 +472,15 @@ public class HuntMod implements ModInitializer {
                 }
                 player.sendMessage(Text.literal("Ты в капкане! Нажимай ПКМ именно по капкану ещё " + (5 - TRAP_ESCAPE_CLICKS.getOrDefault(id, 0)) + " раз."), true);
                 return ActionResult.FAIL;
+            }
+            if ("killer".equals(ROLES.get(id)) && world.getBlockState(pos).isOf(TRAP_BLOCK)) {
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                TRAP_POSITIONS.remove(pos);
+                TRAPPED_AT.entrySet().removeIf(entry -> entry.getValue().equals(pos));
+                TRAP_ITEM.getDefaultStack();
+                if (!player.getInventory().insertStack(new ItemStack(TRAP_ITEM, 1))) player.dropItem(new ItemStack(TRAP_ITEM, 1), false);
+                player.sendMessage(Text.literal("Ты подобрал капкан."), true);
+                return ActionResult.SUCCESS;
             }
             if (LOCKERS.contains(pos)) {
                 if ("killer".equals(ROLES.get(id))) {
@@ -594,23 +627,21 @@ public class HuntMod implements ModInitializer {
                             survivor.changeGameMode(GameMode.SPECTATOR);
                             survivor.sendMessage(Text.literal("Капкан забрал последнюю жизнь. Ты выбыл из раунда."), false);
                         } else {
-                            TRAPPED_TICKS.put(survivorId, 1);
+                            TRAPPED_TICKS.put(survivorId, 60);
                             TRAPPED_AT.put(survivorId, trapPos.toImmutable());
-                            TRAP_ESCAPE_CLICKS.put(survivorId, 0);
-                            survivor.sendMessage(Text.literal("Ты попался в капкан и потерял 1 жизнь! Осталась 1 жизнь. Нажми ПКМ по капкану 5 раз, чтобы выбраться."), false);
+                            TRAP_ESCAPE_CLICKS.remove(survivorId);
+                            survivor.sendMessage(Text.literal("Ты попался в капкан и потерял 1 жизнь! Капкан сломан. Ты обездвижен на 3 секунды."), false);
                         }
                         for (ServerPlayerEntity killer : server.getPlayerManager().getPlayerList()) {
                             if ("killer".equals(ROLES.get(killer.getUuid()))) killer.sendMessage(Text.literal("Выживший попался в твой капкан и потерял жизнь!"), true);
                         }
-                        if (remainingLives <= 0) {
-                            for (ServerWorld candidateWorld : server.getWorlds()) {
-                                if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
-                                    candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                                    break;
-                                }
+                        for (ServerWorld candidateWorld : server.getWorlds()) {
+                            if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
+                                candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                break;
                             }
-                            TRAP_POSITIONS.remove(trapPos);
                         }
+                        TRAP_POSITIONS.remove(trapPos);
                         break;
                     }
                 }
@@ -658,6 +689,21 @@ public class HuntMod implements ModInitializer {
                 if (trapped != null) {
                     p.setVelocity(0, 0, 0);
                     p.velocityModified = true;
+                    if (trapped <= 1) {
+                        TRAPPED_TICKS.remove(id);
+                        TRAPPED_AT.remove(id);
+                        TRAP_ESCAPE_CLICKS.remove(id);
+                        p.sendMessage(Text.literal("Ты освободился из капкана."), true);
+                    } else TRAPPED_TICKS.put(id, trapped - 1);
+                }
+                Integer stunned = STUNNED_TICKS.get(id);
+                if (stunned != null) {
+                    p.setVelocity(0, 0, 0);
+                    p.velocityModified = true;
+                    if (stunned <= 1) {
+                        STUNNED_TICKS.remove(id);
+                        p.sendMessage(Text.literal("Оглушение закончилось."), true);
+                    } else STUNNED_TICKS.put(id, stunned - 1);
                 }
                 Integer breaking = PALLET_BREAKING.get(id);
                 if (breaking != null) {
@@ -772,6 +818,9 @@ public class HuntMod implements ModInitializer {
         for (ServerPlayerEntity p : players) {
             String role = ROLES.get(p.getUuid());
             if ("survivor".equals(role)) LIVES.put(p.getUuid(), 2);
+            else if ("killer".equals(role)) {
+                if (!p.getInventory().insertStack(new ItemStack(MACHETE_ITEM, 1))) p.dropItem(new ItemStack(MACHETE_ITEM, 1), false);
+            }
             ServerPlayNetworking.send(p, new RolePayload(role));
             var speed = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
             if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
