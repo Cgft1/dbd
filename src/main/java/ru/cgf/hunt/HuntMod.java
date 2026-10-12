@@ -29,6 +29,10 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "generator"), new Block(Block.Settings.copy(Blocks.IRON_BLOCK).strength(4.0f)));
     public static final Item GENERATOR_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "generator"), new BlockItem(GENERATOR_BLOCK, new Item.Settings()));
+    public static final Block LOCKER_BLOCK = Registry.register(Registries.BLOCK,
+        Identifier.of("hunt_generators", "locker"), new Block(Block.Settings.copy(Blocks.BARREL).strength(3.0f)));
+    public static final Item LOCKER_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -36,6 +40,8 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, BlockPos> REPAIRING = new HashMap<>();
     private static final Map<UUID, Integer> REPAIR_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
+    private static final Set<BlockPos> LOCKERS = new LinkedHashSet<>();
+    private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
     private static BlockPos gatePos = null;
     private static boolean running = false;
     private static boolean gateOpened = false;
@@ -94,6 +100,18 @@ public class HuntMod implements ModInitializer {
                     source.sendFeedback(() -> Text.literal("Блок генератора установлен перед тобой на " + pos.toShortString() + " (" + GENERATORS.size() + "/5)."), false);
                     return 1;
                 })))
+                .then(literal("locker").then(literal("add").executes(ctx -> {
+                    var source = ctx.getSource();
+                    BlockPos pos = BlockPos.ofFloored(source.getPosition()).offset(source.getPlayerOrThrow().getHorizontalFacing()).toImmutable();
+                    if (LOCKERS.size() >= 20) {
+                        source.sendError(Text.literal("Максимум 20 шкафов."));
+                        return 0;
+                    }
+                    source.getWorld().setBlockState(pos, LOCKER_BLOCK.getDefaultState());
+                    LOCKERS.add(pos);
+                    source.sendFeedback(() -> Text.literal("Шкаф для пряток установлен: " + pos.toShortString()), false);
+                    return 1;
+                })))
                 .then(literal("gate").then(literal("add").executes(ctx -> {
                     gatePos = BlockPos.ofFloored(ctx.getSource().getPosition()).toImmutable();
                     gateOpened = false;
@@ -117,6 +135,7 @@ public class HuntMod implements ModInitializer {
                     REPAIRED.clear();
                     ROLES.clear();
                     GENERATORS.clear();
+                    LOCKERS.clear(); HIDING.clear();
                     gatePos = null;
                     ctx.getSource().sendFeedback(() -> Text.literal("Настройки генераторов и ворот очищены."), false);
                     return 1;
@@ -127,8 +146,26 @@ public class HuntMod implements ModInitializer {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient || !(world instanceof ServerWorld serverWorld) || !running) return ActionResult.PASS;
             BlockPos pos = hit.getBlockPos().toImmutable();
-            if (!GENERATORS.contains(pos)) return ActionResult.PASS;
             UUID id = player.getUuid();
+            if (LOCKERS.contains(pos)) {
+                if (!"survivor".equals(ROLES.get(id))) {
+                    player.sendMessage(Text.literal("Только выжившие могут прятаться в шкафах."), true);
+                    return ActionResult.FAIL;
+                }
+                if (HIDING.containsKey(id)) {
+                    HIDING.remove(id);
+                    player.setInvisible(false);
+                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 1.5, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
+                    player.sendMessage(Text.literal("Ты вышел из шкафа."), true);
+                } else {
+                    HIDING.put(id, pos);
+                    player.setInvisible(true);
+                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
+                    player.sendMessage(Text.literal("Ты спрятался в шкафу. Нажми на шкаф ещё раз, чтобы выйти."), true);
+                }
+                return ActionResult.SUCCESS;
+            }
+            if (!GENERATORS.contains(pos)) return ActionResult.PASS;
             if (!"survivor".equals(ROLES.get(id))) {
                 player.sendMessage(Text.literal("Только выжившие могут чинить генераторы."), true);
                 return ActionResult.FAIL;
@@ -157,6 +194,17 @@ public class HuntMod implements ModInitializer {
             if (!running) return;
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
                 UUID id = p.getUuid();
+                BlockPos hidingSpot = HIDING.get(id);
+                if (hidingSpot != null) {
+                    if (!"survivor".equals(ROLES.get(id)) || !running) {
+                        HIDING.remove(id);
+                        p.setInvisible(false);
+                    } else {
+                        p.setInvisible(true);
+                        p.teleport(p.getServerWorld(), hidingSpot.getX() + 0.5, hidingSpot.getY(), hidingSpot.getZ() + 0.5, java.util.Set.of(), p.getYaw(), p.getPitch(), false);
+                        continue;
+                    }
+                }
                 BlockPos target = REPAIRING.get(id);
                 if (target == null) continue;
                 if (!"survivor".equals(ROLES.get(id)) || p.squaredDistanceTo(target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5) > 25) {
