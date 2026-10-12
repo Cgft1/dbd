@@ -38,9 +38,13 @@ public class HuntClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
-                role = payload.role();
+                String newRole = payload.role();
+                boolean roleChanged = !newRole.equals(role);
+                role = newRole;
                 applyPerspective(context.client());
-                if ("survivor".equals(role)) {
+                // The server currently sends the role payload every tick. Only open the guide
+                // when the player first becomes a survivor, never on every repeated payload.
+                if (roleChanged && "survivor".equals(role)) {
                     context.client().setScreen(new SurvivorGuideScreen());
                 }
             })
