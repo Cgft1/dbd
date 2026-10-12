@@ -71,6 +71,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
+    private static final Map<UUID, Map<String, Long>> KILLER_ABILITY_READY = new HashMap<>();
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
     private static final Map<UUID, Integer> TOOLBOX_USE_TICKS = new HashMap<>();
     private static final Map<BlockPos, Integer> PALLET_BREAK_TICKS = new HashMap<>();
@@ -91,6 +92,57 @@ public class HuntMod implements ModInitializer {
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(RolePayload.ID, RolePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ExitActionPayload.ID, ExitActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(KillerAbilityPayload.ID, KillerAbilityPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(KillerAbilityPayload.ID, (payload, context) ->
+            context.player().getServer().execute(() -> {
+                ServerPlayerEntity killer = context.player();
+                UUID killerId = killer.getUuid();
+                if (!running || !"killer".equals(ROLES.get(killerId))) return;
+                String ability = payload.ability();
+                long now = killer.getServerWorld().getTime();
+                long cooldown = switch (ability) {
+                    case "y" -> 900L;
+                    case "u" -> 700L;
+                    case "i" -> 800L;
+                    default -> 0L;
+                };
+                if (cooldown == 0L) return;
+                Map<String, Long> cooldowns = KILLER_ABILITY_READY.computeIfAbsent(killerId, key -> new HashMap<>());
+                long readyAt = cooldowns.getOrDefault(ability, 0L);
+                if (now < readyAt) {
+                    killer.sendMessage(Text.literal("Способность перезаряжается: " + ((readyAt - now + 19) / 20) + " сек."), true);
+                    return;
+                }
+                cooldowns.put(ability, now + cooldown);
+                switch (ability) {
+                    case "y" -> {
+                        for (ServerPlayerEntity target : killer.getServerWorld().getPlayers()) {
+                            if ("survivor".equals(ROLES.get(target.getUuid()))) {
+                                target.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 100, 0, false, false, true));
+                            }
+                        }
+                        killer.sendMessage(Text.literal("Кровавое чутьё! Все выжившие подсвечены на 5 секунд. Перезарядка: 45 сек."), true);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_WARDEN_LISTENING_ANGRY.value(), SoundCategory.PLAYERS, 0.8f, 1.3f);
+                    }
+                    case "u" -> {
+                        killer.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 100, 1, false, true, true));
+                        killer.sendMessage(Text.literal("Ярость! Скорость повышена на 5 секунд. Перезарядка: 35 сек."), true);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.PLAYERS, 0.8f, 1.0f);
+                    }
+                    case "i" -> {
+                        for (ServerPlayerEntity target : killer.getServerWorld().getPlayers()) {
+                            if ("survivor".equals(ROLES.get(target.getUuid())) && target.squaredDistanceTo(killer) <= 64.0) {
+                                target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1, false, true, true));
+                                target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 40, 0, false, true, true));
+                                target.sendMessage(Text.literal("Ударная волна маньяка!"), true);
+                            }
+                        }
+                        killer.sendMessage(Text.literal("Ударная волна! Выжившие в радиусе 8 блоков замедлены и ослеплены. Перезарядка: 40 сек."), true);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+                    }
+                }
+            })
+        );
         ServerPlayNetworking.registerGlobalReceiver(ExitActionPayload.ID, (payload, context) ->
             context.player().getServer().execute(() -> {
                 ServerPlayerEntity player = context.player();
