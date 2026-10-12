@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "hunt_generators",
   "version": "${version}",
-  "name": "Hunt: Generators",
-  "description": "Asymmetric horror game: one killer, up to five survivors, five generators and an escape gate.",
+  "name": "Ночная смена: Hunt Generators",
+  "description": "Horror survival mod with generators, lockers, investigation notes, a secret laboratory storyline and access keycards.",
   "authors": [
     "Cgft1"
   ],
@@ -11,7 +11,8 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "ru.cgf.hunt.HuntMod"
+      "ru.cgf.hunt.HuntMod",
+      "ru.cgf.hunt.NightShiftStory"
     ],
     "client": [
       "ru.cgf.hunt.HuntClient"
