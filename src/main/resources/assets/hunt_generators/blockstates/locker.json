@@ -1,1 +1,7 @@
-½ªâj{lš‡^–§¶§z¶­¢»–‡$þZ‘ê
+{
+  "variants": {
+    "": {
+      "model": "hunt_generators:block/locker"
+    }
+  }
+}
