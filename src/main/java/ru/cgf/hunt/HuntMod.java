@@ -658,7 +658,7 @@ public class HuntMod implements ModInitializer {
                         toolbox.damage(1, p, p.getMainHandStack().isOf(TOOLBOX_ITEM) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
                     }
                     REPAIR_PROGRESS.put(target, progress);
-                    p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_NOTE_BLOCK_HAT, SoundCategory.BLOCKS, 0.45f, hasToolbox ? 1.6f : 1.2f);
+                    p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.BLOCKS, 0.45f, hasToolbox ? 1.6f : 1.2f);
                     p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
                     if (progress >= 100) {
                         p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.9f, 1.0f);
