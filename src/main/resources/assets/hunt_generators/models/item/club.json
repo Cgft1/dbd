@@ -2,11 +2,11 @@
   "credit": "Hunt: Generators - textured spiked club",
   "parent": "minecraft:item/handheld",
   "textures": {
-    "wood": "minecraft:block/spruce_planks",
-    "dark": "minecraft:block/dark_oak_log",
-    "wrap": "minecraft:block/stripped_spruce_log",
-    "metal": "minecraft:block/iron_block",
-    "particle": "minecraft:block/spruce_planks"
+    "wood": "minecraft:item/stick",
+    "dark": "minecraft:item/stick",
+    "wrap": "minecraft:item/stick",
+    "metal": "minecraft:item/iron_ingot",
+    "particle": "minecraft:item/stick"
   },
   "elements": [
     {"from":[7,0,7],"to":[9,8,9],"faces":{"north":{"texture":"#dark"},"south":{"texture":"#dark"},"east":{"texture":"#dark"},"west":{"texture":"#dark"},"up":{"texture":"#wood"},"down":{"texture":"#dark"}}},
