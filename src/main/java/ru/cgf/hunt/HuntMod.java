@@ -99,6 +99,7 @@ public class HuntMod implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(RolePayload.ID, RolePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(GeneratorHudPayload.ID, GeneratorHudPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ExitActionPayload.ID, ExitActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(KillerAbilityPayload.ID, KillerAbilityPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(KillerAbilityPayload.ID, (payload, context) ->
@@ -696,7 +697,11 @@ public class HuntMod implements ModInitializer {
                     else PALLET_BREAKING.put(id, breaking - 1);
                 }
                 BlockPos target = REPAIRING.get(id);
-                if (target == null) continue;
+                if (target == null) {
+                    ServerPlayNetworking.send(p, new GeneratorHudPayload(0, 0, false));
+                    continue;
+                }
+                ServerPlayNetworking.send(p, new GeneratorHudPayload(REPAIR_PROGRESS.getOrDefault(target, 0), SKILL_CHECK_WINDOW.getOrDefault(id, 0), true));
                 if (!"survivor".equals(ROLES.get(id)) || p.squaredDistanceTo(target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5) > 25) {
                     REPAIRING.remove(id);
                     REPAIR_TICKS.remove(id);
