@@ -507,7 +507,7 @@ public class HuntMod implements ModInitializer {
                     UUID survivorId = survivor.getUuid();
                     if ("survivor".equals(ROLES.get(survivorId))
                             && !TRAPPED_TICKS.containsKey(survivorId)
-                            && survivor.getBlockPos().isWithinDistance(trapPos, 0.65)) {
+                            && survivor.getBlockPos().isWithinDistance(trapPos, 1.25)) {
                         int remainingLives = LIVES.getOrDefault(survivorId, 2) - 1;
                         LIVES.put(survivorId, remainingLives);
                         if (remainingLives <= 0) {
