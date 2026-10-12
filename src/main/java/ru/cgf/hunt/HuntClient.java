@@ -3,6 +3,8 @@ package ru.cgf.hunt;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.client.option.KeyBinding;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -14,12 +16,26 @@ public class HuntClient implements ClientModInitializer {
     private static KeyBinding killerYKey;
     private static KeyBinding killerUKey;
     private static KeyBinding killerIKey;
+    private static int generatorProgress;
+    private static int skillTicks;
+    private static boolean repairing;
 
     @Override
     public void onInitializeClient() {
         killerYKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_y", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.hunt_generators.killer"));
         killerUKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_u", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_U, "category.hunt_generators.killer"));
         killerIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_i", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_I, "category.hunt_generators.killer"));
+        ClientPlayNetworking.registerGlobalReceiver(GeneratorHudPayload.ID, (payload, context) ->
+            context.client().execute(() -> {
+                generatorProgress = payload.progress();
+                skillTicks = payload.skillTicks();
+                repairing = payload.repairing();
+            })
+        );
+        HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
+            if (!repairing || clientPlayerMissing()) return;
+            drawGeneratorHud(drawContext);
+        });
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
                 role = payload.role();
@@ -42,6 +58,34 @@ public class HuntClient implements ClientModInitializer {
                 }
             }
         });
+    }
+
+    private static boolean clientPlayerMissing() {
+        return net.minecraft.client.MinecraftClient.getInstance().player == null;
+    }
+
+    private static void drawGeneratorHud(DrawContext context) {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        int center = client.getWindow().getScaledWidth() / 2;
+        int top = client.getWindow().getScaledHeight() - 76;
+        int width = 210;
+        int left = center - width / 2;
+        context.fill(left - 8, top - 8, left + width + 8, top + 52, 0xDD101820);
+        context.fill(left - 8, top - 8, left + width + 8, top - 6, 0xFF42C8D5);
+        context.drawCenteredTextWithShadow(client.textRenderer, "ПОЧИНКА ГЕНЕРАТОРА", center, top, 0xFFFFFFFF);
+        context.fill(left, top + 15, left + width, top + 25, 0xFF333D46);
+        context.fill(left, top + 15, left + width * Math.max(0, Math.min(100, generatorProgress)) / 100, top + 25, 0xFF36C98F);
+        context.drawCenteredTextWithShadow(client.textRenderer, generatorProgress + "%", center, top + 15, 0xFFFFFFFF);
+        if (skillTicks > 0) {
+            int barTop = top + 34;
+            context.fill(left, barTop, left + width, barTop + 8, 0xFF333D46);
+            int zoneLeft = left + width * 62 / 100;
+            int zoneRight = left + width * 76 / 100;
+            context.fill(zoneLeft, barTop, zoneRight, barTop + 8, 0xFF42D879);
+            int cursor = left + width * ((40 - Math.max(0, Math.min(40, skillTicks))) * 5 / 2) / 100;
+            context.fill(cursor - 2, barTop - 2, cursor + 2, barTop + 10, 0xFFFFD45A);
+            context.drawCenteredTextWithShadow(client.textRenderer, "ПРОВЕРКА! ПКМ ПО ГЕНЕРАТОРУ", center, barTop + 10, 0xFFFFD45A);
+        }
     }
 
     private static void applyPerspective(net.minecraft.client.MinecraftClient client) {
