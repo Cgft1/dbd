@@ -20,6 +20,7 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
 import net.minecraft.item.ToolMaterials;
 import net.minecraft.registry.Registries;
@@ -927,6 +928,11 @@ public class HuntMod implements ModInitializer {
             String role = ROLES.get(p.getUuid());
             if ("survivor".equals(role)) LIVES.put(p.getUuid(), 2);
             else if ("killer".equals(role)) {
+                // Distinct killer look: skull mask, dark chest armor, rugged legs and boots.
+                p.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.WITHER_SKELETON_SKULL));
+                p.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.CHAINMAIL_CHESTPLATE));
+                p.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.LEATHER_LEGGINGS));
+                p.equipStack(EquipmentSlot.FEET, new ItemStack(Items.LEATHER_BOOTS));
                 ItemStack machete = new ItemStack(MACHETE_ITEM, 1);
                 if (!p.getInventory().insertStack(machete)) p.dropItem(machete, false);
                 ItemStack club = new ItemStack(CLUB_ITEM, 1);
