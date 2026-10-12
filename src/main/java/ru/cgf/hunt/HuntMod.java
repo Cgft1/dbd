@@ -5,6 +5,10 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -159,6 +163,7 @@ public class HuntMod implements ModInitializer {
                     escapeAnnounced = false;
                     REPAIRED.clear();
                     ROLES.clear();
+                    PALLETS.clear(); BLINDED_UNTIL.clear();
                     ctx.getSource().getServer().getPlayerManager().broadcast(Text.literal("Раунд сброшен. Конфигурация генераторов и ворот сохранена."), false);
                     return 1;
                 }))
@@ -168,13 +173,53 @@ public class HuntMod implements ModInitializer {
                     escapeAnnounced = false;
                     REPAIRED.clear();
                     ROLES.clear();
+                    PALLETS.clear(); BLINDED_UNTIL.clear();
                     GENERATORS.clear();
-                    LOCKERS.clear(); HIDING.clear();
+                    LOCKERS.clear(); HIDING.clear(); PALLETS.clear();
                     gatePos = null;
                     ctx.getSource().sendFeedback(() -> Text.literal("Настройки генераторов и ворот очищены."), false);
                     return 1;
                 }))
             );
+        });
+
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (world.isClient || !(player instanceof ServerPlayerEntity user) || !running
+                    || !"survivor".equals(ROLES.get(user.getUuid()))) return TypedActionResult.pass(stack);
+            if (stack.isOf(MEDKIT_ITEM)) {
+                if (user.getHealth() >= user.getMaxHealth()) {
+                    user.sendMessage(Text.literal("Здоровье уже полное."), true);
+                    return TypedActionResult.fail(stack);
+                }
+                user.heal(2.0F);
+                stack.damage(1, user, hand == net.minecraft.util.Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
+                user.sendMessage(Text.literal("Аптечка восстановила одно здоровье."), true);
+                return TypedActionResult.success(stack);
+            }
+            if (stack.isOf(FLASHLIGHT_ITEM)) {
+                ServerPlayerEntity target = null;
+                double best = 144.0;
+                var look = user.getRotationVec(1.0F);
+                for (ServerPlayerEntity candidate : world.getPlayers()) {
+                    if (candidate == user || !"killer".equals(ROLES.get(candidate.getUuid()))) continue;
+                    var delta = candidate.getEyePos().subtract(user.getEyePos());
+                    double distance = delta.length();
+                    if (distance > 12.0 || distance < 0.1 || look.dotProduct(delta.normalize()) < 0.88) continue;
+                    if (distance * distance < best) { best = distance * distance; target = candidate; }
+                }
+                if (target == null) {
+                    user.sendMessage(Text.literal("Убийца не попал в луч фонарика."), true);
+                    return TypedActionResult.fail(stack);
+                }
+                target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 100, 0, false, true, true));
+                BLINDED_UNTIL.put(target.getUuid(), target.getServerWorld().getTime() + 100L);
+                stack.damage(1, user, hand == net.minecraft.util.Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
+                user.sendMessage(Text.literal("Ты ослепил убийцу на 5 секунд!"), true);
+                target.sendMessage(Text.literal("Тебя ослепили на 5 секунд!"), true);
+                return TypedActionResult.success(stack);
+            }
+            return TypedActionResult.pass(stack);
         });
 
         AttackEntityCallback.EVENT.register((attacker, world, hand, target, hitResult) -> {
@@ -224,6 +269,15 @@ public class HuntMod implements ModInitializer {
                 }
                 return ActionResult.SUCCESS;
             }
+            if (PALLETS.contains(pos)) {
+                if (!"survivor".equals(ROLES.get(id))) return ActionResult.FAIL;
+                var facing = player.getHorizontalFacing();
+                double x = pos.getX() + 0.5 + facing.getOffsetX() * 1.8;
+                double z = pos.getZ() + 0.5 + facing.getOffsetZ() * 1.8;
+                player.teleport(serverWorld, x, pos.getY(), z, java.util.Set.of(), player.getYaw(), player.getPitch());
+                player.sendMessage(Text.literal("Ты перелез через доски!"), true);
+                return ActionResult.SUCCESS;
+            }
             if (!GENERATORS.contains(pos)) return ActionResult.PASS;
             String role = ROLES.get(id);
             if ("killer".equals(role)) {
@@ -268,6 +322,11 @@ public class HuntMod implements ModInitializer {
                 String role = ROLES.get(player.getUuid());
                 if (role != null) {
                     ServerPlayNetworking.send(player, new RolePayload(role));
+                    Long blindUntil = BLINDED_UNTIL.get(player.getUuid());
+                    if (blindUntil != null && player.getServerWorld().getTime() >= blindUntil) {
+                        player.removeStatusEffect(StatusEffects.BLINDNESS);
+                        BLINDED_UNTIL.remove(player.getUuid());
+                    }
                     var speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
                     if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
                 }
