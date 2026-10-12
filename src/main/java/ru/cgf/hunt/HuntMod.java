@@ -45,11 +45,11 @@ public class HuntMod implements ModInitializer {
     public static final Item LOCKER_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
     public static final Item TOOLBOX_ITEM = Registry.register(Registries.ITEM,
-        Identifier.of("hunt_generators", "toolbox"), new Item(new Item.Settings().maxDamage(128)));
+        Identifier.of("hunt_generators", "toolbox"), new Item(new Item.Settings().maxDamage(200)));
     public static final Item MEDKIT_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "medkit"), new Item(new Item.Settings().maxDamage(4)));
     public static final Item FLASHLIGHT_ITEM = Registry.register(Registries.ITEM,
-        Identifier.of("hunt_generators", "flashlight"), new Item(new Item.Settings().maxDamage(32)));
+        Identifier.of("hunt_generators", "flashlight"), new Item(new Item.Settings().maxDamage(3)));
     public static final Block PALLET_BLOCK = Registry.register(Registries.BLOCK,
         Identifier.of("hunt_generators", "pallet"), new Block(Block.Settings.copy(Blocks.OAK_PLANKS).strength(2.0f)));
     public static final Item PALLET_ITEM = Registry.register(Registries.ITEM,
@@ -66,6 +66,8 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
+    private static final Map<UUID, Integer> TOOLBOX_USE_TICKS = new HashMap<>();
+    private static final Map<BlockPos, Integer> PALLET_BREAK_TICKS = new HashMap<>();
     private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
     private static final long DASH_COOLDOWN_TICKS = 12000L;
@@ -354,8 +356,12 @@ public class HuntMod implements ModInitializer {
             if (world.getBlockState(pos).isOf(PALLET_BLOCK)) {
                 String role = ROLES.get(id);
                 if ("killer".equals(role)) {
-                    world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                    player.sendMessage(Text.literal("Ты сломал палету!"), true);
+                    if (PALLET_BREAK_TICKS.containsKey(pos)) {
+                        player.sendMessage(Text.literal("Ты уже ломаешь эту палету..."), true);
+                        return ActionResult.SUCCESS;
+                    }
+                    PALLET_BREAK_TICKS.put(pos, 100);
+                    player.sendMessage(Text.literal("Начал ломать палету. Это займёт 5 секунд!"), true);
                     return ActionResult.SUCCESS;
                 }
                 if (!"survivor".equals(role)) return ActionResult.FAIL;
@@ -433,6 +439,32 @@ public class HuntMod implements ModInitializer {
                     }
                 }
             }
+            Iterator<Map.Entry<BlockPos, Integer>> palletIterator = PALLET_BREAK_TICKS.entrySet().iterator();
+            while (palletIterator.hasNext()) {
+                Map.Entry<BlockPos, Integer> entry = palletIterator.next();
+                BlockPos palletPos = entry.getKey();
+                ServerWorld palletWorld = null;
+                for (ServerWorld candidateWorld : server.getWorlds()) {
+                    if (candidateWorld.getBlockState(palletPos).isOf(PALLET_BLOCK)) {
+                        palletWorld = candidateWorld;
+                        break;
+                    }
+                }
+                if (palletWorld == null) {
+                    palletIterator.remove();
+                    continue;
+                }
+                int remaining = entry.getValue() - 1;
+                if (remaining <= 0) {
+                    palletWorld.setBlockState(palletPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                    palletIterator.remove();
+                    for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+                        online.sendMessage(Text.literal("Палета сломана!"), true);
+                    }
+                } else {
+                    entry.setValue(remaining);
+                }
+            }
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
                 UUID id = p.getUuid();
                 BlockPos hidingSpot = HIDING.get(id);
@@ -466,6 +498,19 @@ public class HuntMod implements ModInitializer {
                 int ticks = REPAIR_TICKS.getOrDefault(id, 0) + 1;
                 REPAIR_TICKS.put(id, ticks);
                 boolean hasToolbox = p.getMainHandStack().isOf(TOOLBOX_ITEM) || p.getOffHandStack().isOf(TOOLBOX_ITEM);
+                if (hasToolbox) {
+                    int usedTicks = TOOLBOX_USE_TICKS.getOrDefault(id, 0) + 1;
+                    TOOLBOX_USE_TICKS.put(id, usedTicks);
+                    if (usedTicks >= 200) {
+                        if (p.getMainHandStack().isOf(TOOLBOX_ITEM)) p.getMainHandStack().decrement(1);
+                        else p.getOffHandStack().decrement(1);
+                        TOOLBOX_USE_TICKS.remove(id);
+                        p.sendMessage(Text.literal("Ящик с инструментами сломался после 10 секунд работы!"), true);
+                        hasToolbox = false;
+                    }
+                } else {
+                    TOOLBOX_USE_TICKS.remove(id);
+                }
                 int threshold = hasToolbox ? 10 : 20;
                 if (ticks >= threshold) {
                     REPAIR_TICKS.put(id, 0);
