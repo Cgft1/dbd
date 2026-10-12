@@ -19,6 +19,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
@@ -127,6 +128,77 @@ public class HuntMod implements ModInitializer {
                     player.sendMessage(Text.literal("Рывок использован! Перезарядка — 10 минут."), true);
                     return 1;
                 }))
+                .then(literal("test").then(argument("role", StringArgumentType.word()).executes(ctx -> {
+                    var source = ctx.getSource();
+                    ServerPlayerEntity player = source.getPlayerOrThrow();
+                    String role = StringArgumentType.getString(ctx, "role").toLowerCase(Locale.ROOT);
+                    if (!role.equals("killer") && !role.equals("survivor")) {
+                        source.sendError(Text.literal("Используй: /hunt test killer или /hunt test survivor"));
+                        return 0;
+                    }
+
+                    // Одиночный тестовый режим: создаём тренировочную арену вокруг игрока.
+                    running = false;
+                    for (ServerPlayerEntity online : source.getServer().getPlayerManager().getPlayerList()) {
+                        Double originalJump = ORIGINAL_JUMP_STRENGTH.remove(online.getUuid());
+                        if (originalJump != null) {
+                            var jump = online.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
+                            if (jump != null) jump.setBaseValue(originalJump);
+                        }
+                        online.setInvisible(false);
+                    }
+                    ROLES.clear();
+                    GENERATORS.clear();
+                    REPAIRED.clear();
+                    REPAIR_PROGRESS.clear();
+                    REPAIRING.clear();
+                    REPAIR_TICKS.clear();
+                    SKILL_CHECK_WINDOW.clear();
+                    LOCKERS.clear();
+                    HIDING.clear();
+                    LIVES.clear();
+                    ELIMINATED.clear();
+                    BLINDED_UNTIL.clear();
+                    gateOpened = false;
+                    escapeAnnounced = false;
+
+                    ServerWorld world = player.getServerWorld();
+                    BlockPos base = player.getBlockPos();
+                    int[][] generatorOffsets = {{3, 0}, {6, 0}, {9, 0}, {12, 0}, {15, 0}};
+                    for (int[] offset : generatorOffsets) {
+                        BlockPos pos = base.add(offset[0], 0, offset[1]).toImmutable();
+                        world.setBlockState(pos, GENERATOR_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                        GENERATORS.add(pos);
+                    }
+                    gatePos = base.add(-3, 0, 0).toImmutable();
+                    world.setBlockState(gatePos, Blocks.IRON_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                    BlockPos locker = base.add(0, 0, -2).toImmutable();
+                    world.setBlockState(locker, LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                    LOCKERS.add(locker);
+                    BlockPos pallet = base.add(0, 0, 2).toImmutable();
+                    world.setBlockState(pallet, PALLET_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+
+                    ROLES.put(player.getUuid(), role);
+                    running = true;
+                    if (role.equals("survivor")) LIVES.put(player.getUuid(), 2);
+                    var jump = player.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
+                    if (jump != null) {
+                        ORIGINAL_JUMP_STRENGTH.put(player.getUuid(), jump.getBaseValue());
+                        jump.setBaseValue(0.0);
+                    }
+                    var speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+                    if (speed != null) speed.setBaseValue(role.equals("killer") ? 0.11 : 0.1);
+
+                    player.getInventory().insertStack(new ItemStack(TOOLBOX_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(MEDKIT_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(FLASHLIGHT_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(PALLET_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(LOCKER_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(GENERATOR_ITEM, 1));
+                    player.sendMessage(Text.literal("ТЕСТОВЫЙ РЕЖИМ: роль " + (role.equals("killer") ? "УБИЙЦА" : "ВЫЖИВШИЙ") + ". Арена и предметы созданы. Прыжок отключён."), false);
+                    player.sendMessage(Text.literal("Проверь генераторы, шкаф, палету, предметы и /hunt status. Для смены роли снова выполни /hunt test killer или survivor."), false);
+                    return 1;
+                })))
                 .then(literal("status").executes(ctx -> {
                     var source = ctx.getSource();
                     source.sendFeedback(() -> Text.literal("Генераторы: " + REPAIRED.size() + "/5. Ворота: " + (gateOpened ? "открыты" : "закрыты") + ". Раунд: " + (running ? "идёт" : "не запущен") + "."), false);
