@@ -1,3 +1,21 @@
 {
-  "parent": "minecraft:block/air"
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "hunt_generators:block/trap",
+    "trap": "hunt_generators:block/trap"
+  },
+  "elements": [
+    {
+      "from": [1, 0, 1],
+      "to": [15, 2, 15],
+      "faces": {
+        "north": {"texture": "#trap"},
+        "south": {"texture": "#trap"},
+        "east": {"texture": "#trap"},
+        "west": {"texture": "#trap"},
+        "up": {"texture": "#trap"},
+        "down": {"texture": "#trap"}
+      }
+    }
+  ]
 }
