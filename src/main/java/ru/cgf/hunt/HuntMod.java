@@ -78,7 +78,7 @@ public class HuntMod implements ModInitializer {
                     GENERATORS.add(pos);
                     source.sendFeedback(() -> Text.literal("Генератор добавлен на " + pos.toShortString() + " (" + GENERATORS.size() + "/5). Поставь блок генератора под собой и выполни команду стоя на нём."), false);
                     return 1;
-                }))))
+                })))
                 .then(literal("gate").then(literal("add").executes(ctx -> {
                     gatePos = BlockPos.ofFloored(ctx.getSource().getPosition()).toImmutable();
                     gateOpened = false;
