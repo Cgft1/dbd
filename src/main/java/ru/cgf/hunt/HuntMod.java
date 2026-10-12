@@ -130,12 +130,12 @@ public class HuntMod implements ModInitializer {
                             }
                         }
                         killer.sendMessage(Text.literal("Кровавое чутьё! Все выжившие подсвечены на 5 секунд. Перезарядка: 45 сек."), true);
-                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_WARDEN_LISTENING_ANGRY.value(), SoundCategory.PLAYERS, 0.8f, 1.3f);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_WARDEN_LISTENING_ANGRY, SoundCategory.PLAYERS, 0.8f, 1.3f);
                     }
                     case "u" -> {
                         killer.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 100, 1, false, true, true));
                         killer.sendMessage(Text.literal("Ярость! Скорость повышена на 5 секунд. Перезарядка: 35 сек."), true);
-                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR.value(), SoundCategory.PLAYERS, 0.8f, 1.0f);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.PLAYERS, 0.8f, 1.0f);
                     }
                     case "i" -> {
                         for (ServerPlayerEntity target : killer.getServerWorld().getPlayers()) {
@@ -454,30 +454,13 @@ public class HuntMod implements ModInitializer {
             BlockPos pos = hit.getBlockPos().toImmutable();
             UUID id = player.getUuid();
             if ("survivor".equals(ROLES.get(id)) && TRAPPED_TICKS.containsKey(id)) {
-                BlockPos trappedAt = TRAPPED_AT.get(id);
-                if (trappedAt != null && trappedAt.equals(pos) && world.getBlockState(pos).isOf(TRAP_BLOCK)) {
-                    int clicks = TRAP_ESCAPE_CLICKS.getOrDefault(id, 0) + 1;
-                    TRAP_ESCAPE_CLICKS.put(id, clicks);
-                    if (clicks >= 5) {
-                        TRAPPED_TICKS.remove(id);
-                        TRAPPED_AT.remove(id);
-                        TRAP_ESCAPE_CLICKS.remove(id);
-                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                        TRAP_POSITIONS.remove(pos);
-                        player.sendMessage(Text.literal("Ты выбрался из капкана! Капкан сломан."), false);
-                    } else {
-                        player.sendMessage(Text.literal("Выбирайся из капкана: " + clicks + "/5 нажатий."), true);
-                    }
-                    return ActionResult.SUCCESS;
-                }
-                player.sendMessage(Text.literal("Ты в капкане! Нажимай ПКМ именно по капкану ещё " + (5 - TRAP_ESCAPE_CLICKS.getOrDefault(id, 0)) + " раз."), true);
+                player.sendMessage(Text.literal("Ты обездвижен! Подожди, пока закончится действие капкана."), true);
                 return ActionResult.FAIL;
             }
             if ("killer".equals(ROLES.get(id)) && world.getBlockState(pos).isOf(TRAP_BLOCK)) {
                 world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                 TRAP_POSITIONS.remove(pos);
                 TRAPPED_AT.entrySet().removeIf(entry -> entry.getValue().equals(pos));
-                TRAP_ITEM.getDefaultStack();
                 if (!player.getInventory().insertStack(new ItemStack(TRAP_ITEM, 1))) player.dropItem(new ItemStack(TRAP_ITEM, 1), false);
                 player.sendMessage(Text.literal("Ты подобрал капкан."), true);
                 return ActionResult.SUCCESS;
