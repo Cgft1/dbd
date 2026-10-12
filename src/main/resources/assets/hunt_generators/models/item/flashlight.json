@@ -1,4 +1,4 @@
 {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "minecraft:item/lantern" }
+  "textures": { "layer0": "hunt_generators:item/flashlight" }
 }
