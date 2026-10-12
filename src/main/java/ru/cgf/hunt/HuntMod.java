@@ -80,6 +80,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
     private static final Map<UUID, Map<String, Long>> KILLER_ABILITY_READY = new HashMap<>();
+    private static final Map<UUID, String> KILLER_SELECTED_ABILITY = new HashMap<>();
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
     private static final Map<UUID, Integer> TOOLBOX_USE_TICKS = new HashMap<>();
     private static final Map<BlockPos, Integer> PALLET_BREAK_TICKS = new HashMap<>();
@@ -109,6 +110,11 @@ public class HuntMod implements ModInitializer {
                 UUID killerId = killer.getUuid();
                 if (!running || !"killer".equals(ROLES.get(killerId))) return;
                 String ability = payload.ability();
+                String selectedAbility = KILLER_SELECTED_ABILITY.getOrDefault(killerId, "y");
+                if (!selectedAbility.equals(ability)) {
+                    killer.sendMessage(Text.literal("До раунда выбрана другая способность: " + selectedAbility.toUpperCase(Locale.ROOT)), true);
+                    return;
+                }
                 long now = killer.getServerWorld().getTime();
                 long cooldown = switch (ability) {
                     case "y" -> 900L;
@@ -208,6 +214,31 @@ public class HuntMod implements ModInitializer {
                         source.sendFeedback(() -> Text.literal("Твоя команда: " + (role.equals("killer") ? "Убийцы" : "Выжившие")), false);
                         return 1;
                     })))
+                .then(literal("ability").then(argument("ability", StringArgumentType.word()).executes(ctx -> {
+                    var source = ctx.getSource();
+                    ServerPlayerEntity player = source.getPlayerOrThrow();
+                    if (running) {
+                        source.sendError(Text.literal("Способность можно выбрать только до начала раунда."));
+                        return 0;
+                    }
+                    if (!"killer".equals(ROLES.get(player.getUuid()))) {
+                        source.sendError(Text.literal("Сначала выбери роль командой /hunt join killer."));
+                        return 0;
+                    }
+                    String ability = StringArgumentType.getString(ctx, "ability").toLowerCase(Locale.ROOT);
+                    if (!Set.of("y", "u", "i").contains(ability)) {
+                        source.sendError(Text.literal("Выбери: /hunt ability y, /hunt ability u или /hunt ability i"));
+                        return 0;
+                    }
+                    KILLER_SELECTED_ABILITY.put(player.getUuid(), ability);
+                    String description = switch (ability) {
+                        case "y" -> "Кровавое чутьё — подсвечивает всех выживших на 5 сек. (перезарядка 45 сек.)";
+                        case "u" -> "Ярость — ускорение на 5 сек. (перезарядка 35 сек.)";
+                        default -> "Ударная волна — замедляет и ослепляет выживших рядом (перезарядка 40 сек.)";
+                    };
+                    source.sendFeedback(() -> Text.literal("Выбрана способность: " + description), false);
+                    return 1;
+                })))
                 .then(literal("start").executes(ctx -> start(ctx.getSource().getServer(), ctx.getSource().getPlayerOrThrow())))
                 .then(literal("dash").executes(ctx -> {
                     ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
@@ -825,10 +856,25 @@ public class HuntMod implements ModInitializer {
             commandPlayer.sendMessage(Text.literal("Сначала настрой 5 генераторов и ворота командами /hunt generator add и /hunt gate add."), false);
             return 0;
         }
-        Collections.shuffle(players);
-        ROLES.clear();
-        ROLES.put(players.get(0).getUuid(), "killer");
-        for (int i = 1; i < players.size(); i++) ROLES.put(players.get(i).getUuid(), "survivor");
+        boolean hasChosenKiller = players.stream().anyMatch(p -> "killer".equals(ROLES.get(p.getUuid())));
+        if (hasChosenKiller) {
+            long killerCount = players.stream().filter(p -> "killer".equals(ROLES.get(p.getUuid()))).count();
+            if (killerCount != 1) {
+                commandPlayer.sendMessage(Text.literal("Перед стартом выбери ровно одного убийцу: /hunt join killer. Остальные игроки должны выбрать /hunt join survivor."), false);
+                return 0;
+            }
+            for (ServerPlayerEntity p : players) {
+                if (!"killer".equals(ROLES.get(p.getUuid())) && !"survivor".equals(ROLES.get(p.getUuid()))) {
+                    commandPlayer.sendMessage(Text.literal("Все игроки должны выбрать роль командой /hunt join killer или /hunt join survivor."), false);
+                    return 0;
+                }
+            }
+        } else {
+            Collections.shuffle(players);
+            ROLES.clear();
+            ROLES.put(players.get(0).getUuid(), "killer");
+            for (int i = 1; i < players.size(); i++) ROLES.put(players.get(i).getUuid(), "survivor");
+        }
         REPAIRED.clear();
         REPAIR_PROGRESS.clear(); REPAIRING.clear(); REPAIR_TICKS.clear(); SKILL_CHECK_WINDOW.clear(); SKILL_CHECK_COOLDOWN.clear();
         gateOpened = false;
