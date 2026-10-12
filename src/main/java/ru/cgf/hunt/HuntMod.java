@@ -32,6 +32,10 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
+    private static final Map<BlockPos, Integer> REPAIR_PROGRESS = new HashMap<>();
+    private static final Map<UUID, BlockPos> REPAIRING = new HashMap<>();
+    private static final Map<UUID, Integer> REPAIR_TICKS = new HashMap<>();
+    private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
     private static BlockPos gatePos = null;
     private static boolean running = false;
     private static boolean gateOpened = false;
@@ -121,12 +125,11 @@ public class HuntMod implements ModInitializer {
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.isClient || !(world instanceof ServerWorld serverWorld) || !running) {
-                return ActionResult.PASS;
-            }
+            if (world.isClient || !(world instanceof ServerWorld serverWorld) || !running) return ActionResult.PASS;
             BlockPos pos = hit.getBlockPos().toImmutable();
             if (!GENERATORS.contains(pos)) return ActionResult.PASS;
-            if (!"survivor".equals(ROLES.get(player.getUuid()))) {
+            UUID id = player.getUuid();
+            if (!"survivor".equals(ROLES.get(id))) {
                 player.sendMessage(Text.literal("Только выжившие могут чинить генераторы."), true);
                 return ActionResult.FAIL;
             }
@@ -134,18 +137,67 @@ public class HuntMod implements ModInitializer {
                 player.sendMessage(Text.literal("Этот генератор уже починен."), true);
                 return ActionResult.FAIL;
             }
-            REPAIRED.add(pos);
-            serverWorld.getServer().getPlayerManager().broadcast(
-                Text.literal("Генератор починен! Прогресс: " + REPAIRED.size() + "/5"), false);
-            if (REPAIRED.size() == 5) {
-                gateOpened = true;
-                if (gatePos != null) {
-                    serverWorld.setBlockState(gatePos, Blocks.AIR.getDefaultState());
+            if (pos.equals(REPAIRING.get(id))) {
+                if (SKILL_CHECK_WINDOW.getOrDefault(id, 0) > 0) {
+                    SKILL_CHECK_WINDOW.put(id, 0);
+                    player.sendMessage(Text.literal("Отлично! Проверка пройдена."), true);
+                } else {
+                    player.sendMessage(Text.literal("Мини-игра ещё не активна — дождись сигнала!"), true);
                 }
-                serverWorld.getServer().getPlayerManager().broadcast(
-                    Text.literal("Все генераторы починены! Ворота открыты — выжившие, бегите!"), false);
+                return ActionResult.SUCCESS;
             }
+            REPAIRING.put(id, pos);
+            REPAIR_TICKS.put(id, 0);
+            SKILL_CHECK_WINDOW.put(id, 0);
+            player.sendMessage(Text.literal("Начата починка. Прогресс: " + REPAIR_PROGRESS.getOrDefault(pos, 0) + "%"), true);
             return ActionResult.SUCCESS;
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (!running) return;
+            for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+                UUID id = p.getUuid();
+                BlockPos target = REPAIRING.get(id);
+                if (target == null) continue;
+                if (!"survivor".equals(ROLES.get(id)) || p.squaredDistanceTo(target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5) > 25) {
+                    REPAIRING.remove(id);
+                    REPAIR_TICKS.remove(id);
+                    SKILL_CHECK_WINDOW.remove(id);
+                    p.sendMessage(Text.literal("Починка прервана."), true);
+                    continue;
+                }
+                int window = SKILL_CHECK_WINDOW.getOrDefault(id, 0);
+                if (window > 0) {
+                    SKILL_CHECK_WINDOW.put(id, window - 1);
+                    if (window == 1) {
+                        REPAIR_PROGRESS.put(target, Math.max(0, REPAIR_PROGRESS.getOrDefault(target, 0) - 10));
+                        p.sendMessage(Text.literal("Не успел! Потеряно 10% прогресса."), true);
+                    }
+                }
+                int ticks = REPAIR_TICKS.getOrDefault(id, 0) + 1;
+                REPAIR_TICKS.put(id, ticks);
+                if (ticks >= 20) {
+                    REPAIR_TICKS.put(id, 0);
+                    int progress = Math.min(100, REPAIR_PROGRESS.getOrDefault(target, 0) + 1);
+                    REPAIR_PROGRESS.put(target, progress);
+                    p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
+                    if (progress >= 100) {
+                        REPAIRED.add(target);
+                        REPAIRING.remove(id);
+                        REPAIR_TICKS.remove(id);
+                        SKILL_CHECK_WINDOW.remove(id);
+                        server.getPlayerManager().broadcast(Text.literal("Генератор починен! Прогресс матча: " + REPAIRED.size() + "/5"), false);
+                        if (REPAIRED.size() == 5) {
+                            gateOpened = true;
+                            if (gatePos != null) server.getOverworld().setBlockState(gatePos, Blocks.AIR.getDefaultState());
+                            server.getPlayerManager().broadcast(Text.literal("Все генераторы починены! Ворота открыты — выжившие, бегите!"), false);
+                        }
+                    } else if (progress % 10 == 0 && SKILL_CHECK_WINDOW.getOrDefault(id, 0) == 0) {
+                        SKILL_CHECK_WINDOW.put(id, 40);
+                        p.sendMessage(Text.literal("МИНИ-ИГРА! Нажми ПКМ по генератору в течение 2 секунд!"), true);
+                    }
+                }
+            }
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -181,6 +233,7 @@ public class HuntMod implements ModInitializer {
         ROLES.put(players.get(0).getUuid(), "killer");
         for (int i = 1; i < players.size(); i++) ROLES.put(players.get(i).getUuid(), "survivor");
         REPAIRED.clear();
+        REPAIR_PROGRESS.clear(); REPAIRING.clear(); REPAIR_TICKS.clear(); SKILL_CHECK_WINDOW.clear();
         gateOpened = false;
         escapeAnnounced = false;
         running = true;
