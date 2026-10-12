@@ -33,6 +33,8 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "locker"), new Block(Block.Settings.copy(Blocks.BARREL).strength(3.0f)));
     public static final Item LOCKER_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
+    public static final Item TOOLBOX_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "toolbox"), new Item(new Item.Settings().maxDamage(128)));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -166,8 +168,21 @@ public class HuntMod implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             if (!GENERATORS.contains(pos)) return ActionResult.PASS;
-            if (!"survivor".equals(ROLES.get(id))) {
-                player.sendMessage(Text.literal("Только выжившие могут чинить генераторы."), true);
+            String role = ROLES.get(id);
+            if ("killer".equals(role)) {
+                if (REPAIRED.contains(pos)) {
+                    player.sendMessage(Text.literal("Этот генератор уже починен — его нельзя сломать."), true);
+                    return ActionResult.FAIL;
+                }
+                int damage = 5 + new Random().nextInt(6);
+                int oldProgress = REPAIR_PROGRESS.getOrDefault(pos, 0);
+                int newProgress = Math.max(0, oldProgress - damage);
+                REPAIR_PROGRESS.put(pos, newProgress);
+                player.sendMessage(Text.literal("Сломал генератор! Прогресс уменьшен на " + (oldProgress - newProgress) + "% (" + newProgress + "% осталось)."), true);
+                return ActionResult.SUCCESS;
+            }
+            if (!"survivor".equals(role)) {
+                player.sendMessage(Text.literal("Сначала начни матч командой /hunt start."), true);
                 return ActionResult.FAIL;
             }
             if (REPAIRED.contains(pos)) {
@@ -224,9 +239,15 @@ public class HuntMod implements ModInitializer {
                 }
                 int ticks = REPAIR_TICKS.getOrDefault(id, 0) + 1;
                 REPAIR_TICKS.put(id, ticks);
-                if (ticks >= 20) {
+                boolean hasToolbox = p.getMainHandStack().isOf(TOOLBOX_ITEM) || p.getOffHandStack().isOf(TOOLBOX_ITEM);
+                int threshold = hasToolbox ? 10 : 20;
+                if (ticks >= threshold) {
                     REPAIR_TICKS.put(id, 0);
-                    int progress = Math.min(100, REPAIR_PROGRESS.getOrDefault(target, 0) + 1);
+                    int progress = Math.min(100, REPAIR_PROGRESS.getOrDefault(target, 0) + (hasToolbox ? 2 : 1));
+                    if (hasToolbox) {
+                        var toolbox = p.getMainHandStack().isOf(TOOLBOX_ITEM) ? p.getMainHandStack() : p.getOffHandStack();
+                        toolbox.damage(1, p);
+                    }
                     REPAIR_PROGRESS.put(target, progress);
                     p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
                     if (progress >= 100) {
