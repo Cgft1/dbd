@@ -158,12 +158,12 @@ public class HuntMod implements ModInitializer {
                 if (HIDING.containsKey(id)) {
                     HIDING.remove(id);
                     player.setInvisible(false);
-                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 1.5, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
+                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 1.5, java.util.Set.of(), player.getYaw(), player.getPitch());
                     player.sendMessage(Text.literal("Ты вышел из шкафа."), true);
                 } else {
                     HIDING.put(id, pos);
                     player.setInvisible(true);
-                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
+                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch());
                     player.sendMessage(Text.literal("Ты спрятался в шкафу. Нажми на шкаф ещё раз, чтобы выйти."), true);
                 }
                 return ActionResult.SUCCESS;
@@ -217,7 +217,7 @@ public class HuntMod implements ModInitializer {
                         p.setInvisible(false);
                     } else {
                         p.setInvisible(true);
-                        p.teleport(p.getServerWorld(), hidingSpot.getX() + 0.5, hidingSpot.getY(), hidingSpot.getZ() + 0.5, java.util.Set.of(), p.getYaw(), p.getPitch(), false);
+                        p.teleport(p.getServerWorld(), hidingSpot.getX() + 0.5, hidingSpot.getY(), hidingSpot.getZ() + 0.5, java.util.Set.of(), p.getYaw(), p.getPitch());
                         continue;
                     }
                 }
