@@ -820,16 +820,10 @@ public class HuntMod implements ModInitializer {
                         p.sendMessage(Text.literal("Прогресс генератора: " + gained + "%"), true);
                     }
                     if (gained >= 100) {
-                        if (hasWornToolbox) {
-                            if (p.getMainHandStack().isOf(WORN_TOOLBOX_ITEM)) p.getMainHandStack().decrement(1);
-                            else p.getOffHandStack().decrement(1);
-                        } else {
-                            if (p.getMainHandStack().isOf(ENGINEER_TOOLS_ITEM)) p.getMainHandStack().decrement(1);
-                            else p.getOffHandStack().decrement(1);
-                        }
-                        REPAIR_TICKS.put(id, 0);
+                        REPAIR_PROGRESS.put(target, 99);
+                    } else {
+                        continue;
                     }
-                    continue;
                 }
                 int threshold = hasToolbox ? 10 : 20;
                 if (ticks >= threshold) {
@@ -843,6 +837,13 @@ public class HuntMod implements ModInitializer {
                     p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.BLOCKS, 0.45f, hasToolbox ? 1.6f : 1.2f);
                     p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
                     if (progress >= 100) {
+                        if (hasWornToolbox) {
+                            if (p.getMainHandStack().isOf(WORN_TOOLBOX_ITEM)) p.getMainHandStack().decrement(1);
+                            else p.getOffHandStack().decrement(1);
+                        } else if (hasEngineerTools) {
+                            if (p.getMainHandStack().isOf(ENGINEER_TOOLS_ITEM)) p.getMainHandStack().decrement(1);
+                            else p.getOffHandStack().decrement(1);
+                        }
                         p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.9f, 1.0f);
                         REPAIRED.add(target);
                         SKILL_CHECK_COOLDOWN.remove(id);
