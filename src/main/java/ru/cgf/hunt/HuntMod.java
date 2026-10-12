@@ -552,9 +552,18 @@ public class HuntMod implements ModInitializer {
                 return ActionResult.FAIL;
             }
             if (pos.equals(REPAIRING.get(id))) {
-                if (SKILL_CHECK_WINDOW.getOrDefault(id, 0) > 0) {
+                int skillTicks = SKILL_CHECK_WINDOW.getOrDefault(id, 0);
+                if (skillTicks > 0) {
                     SKILL_CHECK_WINDOW.put(id, 0);
-                    player.sendMessage(Text.literal("Отлично! Проверка пройдена."), true);
+                    if (skillTicks >= 10 && skillTicks <= 15) {
+                        REPAIR_PROGRESS.put(pos, Math.min(100, REPAIR_PROGRESS.getOrDefault(pos, 0) + 5));
+                        player.sendMessage(Text.literal("ТОЧНО В ЦЕЛЬ! +5% прогресса!"), true);
+                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_PLING, SoundCategory.BLOCKS, 0.9f, 1.8f);
+                    } else {
+                        REPAIR_PROGRESS.put(pos, Math.max(0, REPAIR_PROGRESS.getOrDefault(pos, 0) - 10));
+                        player.sendMessage(Text.literal("Промах! Потеряно 10% прогресса."), true);
+                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_BASS, SoundCategory.BLOCKS, 0.8f, 0.7f);
+                    }
                 } else {
                     player.sendMessage(Text.literal("Мини-игра ещё не активна — дождись сигнала!"), true);
                 }
