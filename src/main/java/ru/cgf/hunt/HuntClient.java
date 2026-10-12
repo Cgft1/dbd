@@ -14,6 +14,9 @@ public class HuntClient implements ClientModInitializer {
             context.client().execute(() -> {
                 role = payload.role();
                 applyPerspective(context.client());
+                if ("survivor".equals(role)) {
+                    context.client().setScreen(new SurvivorGuideScreen());
+                }
             })
         );
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
