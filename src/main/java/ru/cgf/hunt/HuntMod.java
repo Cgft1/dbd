@@ -733,10 +733,24 @@ public class HuntMod implements ModInitializer {
                 }
                 Integer breaking = PALLET_BREAKING.get(id);
                 if (breaking != null) {
-                    p.setVelocity(0, 0, 0);
-                    p.velocityModified = true;
-                    if (breaking <= 1) PALLET_BREAKING.remove(id);
-                    else PALLET_BREAKING.put(id, breaking - 1);
+                    BlockPos palletTarget = null;
+                    for (Map.Entry<BlockPos, Integer> palletEntry : PALLET_BREAK_TICKS.entrySet()) {
+                        if (palletEntry.getValue() > 0 && p.squaredDistanceTo(
+                                palletEntry.getKey().getX() + 0.5,
+                                palletEntry.getKey().getY() + 0.5,
+                                palletEntry.getKey().getZ() + 0.5) <= 9.0) {
+                            palletTarget = palletEntry.getKey();
+                            break;
+                        }
+                    }
+                    if (!running || !"killer".equals(ROLES.get(id)) || palletTarget == null) {
+                        PALLET_BREAKING.remove(id);
+                    } else {
+                        p.setVelocity(0, 0, 0);
+                        p.velocityModified = true;
+                        if (breaking <= 1) PALLET_BREAKING.remove(id);
+                        else PALLET_BREAKING.put(id, breaking - 1);
+                    }
                 }
                 BlockPos target = REPAIRING.get(id);
                 if (target == null) {
