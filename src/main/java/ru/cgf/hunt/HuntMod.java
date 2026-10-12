@@ -558,11 +558,11 @@ public class HuntMod implements ModInitializer {
                     if (skillTicks >= 10 && skillTicks <= 15) {
                         REPAIR_PROGRESS.put(pos, Math.min(100, REPAIR_PROGRESS.getOrDefault(pos, 0) + 5));
                         player.sendMessage(Text.literal("ТОЧНО В ЦЕЛЬ! +5% прогресса!"), true);
-                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_PLING, SoundCategory.BLOCKS, 0.9f, 1.8f);
+                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.BLOCKS, 0.9f, 1.8f);
                     } else {
                         REPAIR_PROGRESS.put(pos, Math.max(0, REPAIR_PROGRESS.getOrDefault(pos, 0) - 10));
                         player.sendMessage(Text.literal("Промах! Потеряно 10% прогресса."), true);
-                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_BASS, SoundCategory.BLOCKS, 0.8f, 0.7f);
+                        world.playSound(null, pos, SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.BLOCKS, 0.8f, 0.7f);
                     }
                 } else {
                     player.sendMessage(Text.literal("Мини-игра ещё не активна — дождись сигнала!"), true);
