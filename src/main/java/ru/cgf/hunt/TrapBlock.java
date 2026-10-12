@@ -9,7 +9,8 @@ import net.minecraft.world.BlockView;
 import net.minecraft.block.ShapeContext;
 
 public class TrapBlock extends Block {
-    private static final VoxelShape SHAPE = VoxelShapes.cuboid(0.18, 0.0, 0.18, 0.82, 0.12, 0.82);
+    private static final VoxelShape SHAPE = VoxelShapes.cuboid(0.08, 0.0, 0.08, 0.92, 0.28, 0.92);
+    private static final VoxelShape COLLISION_SHAPE = VoxelShapes.cuboid(0.18, 0.0, 0.18, 0.82, 0.08, 0.82);
 
     public TrapBlock(Settings settings) {
         super(settings);
@@ -22,6 +23,6 @@ public class TrapBlock extends Block {
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return SHAPE;
+        return COLLISION_SHAPE;
     }
 }
