@@ -1,3 +1,4 @@
 {
-  "parent": "hunt_generators:block/trap"
+  "parent": "minecraft:item/generated",
+  "textures": { "layer0": "hunt_generators:block/trap" }
 }

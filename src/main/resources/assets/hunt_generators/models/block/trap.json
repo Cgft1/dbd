@@ -1,4 +1,3 @@
 {
-  "parent": "minecraft:block/cube_all",
-  "textures": { "all": "hunt_generators:block/trap" }
+  "parent": "minecraft:block/air"
 }
