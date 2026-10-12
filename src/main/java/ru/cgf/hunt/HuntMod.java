@@ -55,7 +55,7 @@ public class HuntMod implements ModInitializer {
     public static final Item PALLET_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "pallet"), new BlockItem(PALLET_BLOCK, new Item.Settings()));
     public static final Block TRAP_BLOCK = Registry.register(Registries.BLOCK,
-        Identifier.of("hunt_generators", "trap"), new Block(Block.Settings.copy(Blocks.IRON_BLOCK).strength(1.0f).nonOpaque()));
+        Identifier.of("hunt_generators", "trap"), new TrapBlock(Block.Settings.copy(Blocks.IRON_BLOCK).strength(1.0f).nonOpaque()));
     public static final Item TRAP_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "trap"), new BlockItem(TRAP_BLOCK, new Item.Settings()));
     private static final Map<UUID, String> ROLES = new HashMap<>();
