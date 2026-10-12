@@ -1,11 +1,18 @@
 {
-  "credit": "Hunt: Generators",
+  "credit": "Hunt: Generators - textured bloodied machete",
   "parent": "minecraft:item/handheld",
-  "textures": {"layer0": "minecraft:item/iron_ingot", "particle": "minecraft:item/iron_ingot"},
+  "textures": {
+    "handle": "minecraft:block/dark_oak_planks",
+    "metal": "minecraft:block/iron_block",
+    "edge": "minecraft:block/iron_block",
+    "wrap": "minecraft:block/red_wool",
+    "particle": "minecraft:block/iron_block"
+  },
   "elements": [
-    {"from":[7,0,7],"to":[9,8,9],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}},
-    {"from":[5,7,7],"to":[11,9,9],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}},
-    {"from":[4,8,6],"to":[12,15,9],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}},
-    {"from":[3,13,5],"to":[13,16,9],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}}
+    {"from":[7,0,7],"to":[9,5,9],"faces":{"north":{"texture":"#handle"},"south":{"texture":"#handle"},"east":{"texture":"#handle"},"west":{"texture":"#handle"},"up":{"texture":"#handle"},"down":{"texture":"#handle"}}},
+    {"from":[6,4,6],"to":[10,6,10],"faces":{"north":{"texture":"#wrap"},"south":{"texture":"#wrap"},"east":{"texture":"#wrap"},"west":{"texture":"#wrap"},"up":{"texture":"#wrap"},"down":{"texture":"#handle"}}},
+    {"from":[5,5,7],"to":[11,7,9],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#edge"},"west":{"texture":"#edge"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
+    {"from":[4,6,7],"to":[12,13,9],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#edge"},"west":{"texture":"#edge"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
+    {"from":[3,12,7],"to":[13,16,9],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#edge"},"west":{"texture":"#edge"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}}
   ]
 }
