@@ -5,7 +5,13 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -19,6 +25,10 @@ import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 public class HuntMod implements ModInitializer {
+    public static final Block GENERATOR_BLOCK = Registry.register(Registries.BLOCK,
+        Identifier.of("hunt_generators", "generator"), new Block(Block.Settings.copy(Blocks.IRON_BLOCK).strength(4.0f)));
+    public static final Item GENERATOR_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "generator"), new BlockItem(GENERATOR_BLOCK, new Item.Settings()));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -66,7 +76,8 @@ public class HuntMod implements ModInitializer {
                 }))
                 .then(literal("generator").then(literal("add").executes(ctx -> {
                     var source = ctx.getSource();
-                    BlockPos pos = BlockPos.ofFloored(source.getPosition()).toImmutable();
+                    BlockPos pos = BlockPos.ofFloored(source.getPosition()).offset(source.getPlayerOrThrow().getHorizontalFacing()).toImmutable();
+                    source.getWorld().setBlockState(pos, GENERATOR_BLOCK.getDefaultState());
                     if (GENERATORS.contains(pos)) {
                         source.sendError(Text.literal("Этот генератор уже добавлен."));
                         return 0;
@@ -76,7 +87,7 @@ public class HuntMod implements ModInitializer {
                         return 0;
                     }
                     GENERATORS.add(pos);
-                    source.sendFeedback(() -> Text.literal("Генератор добавлен на " + pos.toShortString() + " (" + GENERATORS.size() + "/5). Поставь блок генератора под собой и выполни команду стоя на нём."), false);
+                    source.sendFeedback(() -> Text.literal("Блок генератора установлен перед тобой на " + pos.toShortString() + " (" + GENERATORS.size() + "/5)."), false);
                     return 1;
                 })))
                 .then(literal("gate").then(literal("add").executes(ctx -> {
