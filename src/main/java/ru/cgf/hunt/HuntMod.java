@@ -296,11 +296,11 @@ public class HuntMod implements ModInitializer {
                     user.sendMessage(Text.literal("Убийца не попал в луч фонарика."), true);
                     return TypedActionResult.fail(stack);
                 }
-                target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 100, 0, false, true, true));
-                BLINDED_UNTIL.put(target.getUuid(), target.getServerWorld().getTime() + 100L);
+                target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 40, 0, false, true, true));
+                BLINDED_UNTIL.put(target.getUuid(), target.getServerWorld().getTime() + 40L);
                 stack.damage(1, user, hand == net.minecraft.util.Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
-                user.sendMessage(Text.literal("Ты ослепил убийцу на 5 секунд!"), true);
-                target.sendMessage(Text.literal("Тебя ослепили на 5 секунд!"), true);
+                user.sendMessage(Text.literal("Ты ослепил убийцу на 2 секунды!"), true);
+                target.sendMessage(Text.literal("Тебя ослепили на 2 секунды!"), true);
                 return TypedActionResult.success(stack);
             }
             return TypedActionResult.pass(stack);
@@ -336,6 +336,22 @@ public class HuntMod implements ModInitializer {
             BlockPos pos = hit.getBlockPos().toImmutable();
             UUID id = player.getUuid();
             if (LOCKERS.contains(pos)) {
+                if ("killer".equals(ROLES.get(id))) {
+                    boolean found = false;
+                    for (Map.Entry<UUID, BlockPos> entry : new ArrayList<>(HIDING.entrySet())) {
+                        if (!entry.getValue().equals(pos)) continue;
+                        ServerPlayerEntity survivor = serverWorld.getServer().getPlayerManager().getPlayer(entry.getKey());
+                        HIDING.remove(entry.getKey());
+                        if (survivor != null) {
+                            survivor.setInvisible(false);
+                            survivor.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 1.2, java.util.Set.of(), survivor.getYaw(), survivor.getPitch());
+                            survivor.sendMessage(Text.literal("Убийца вытащил тебя из шкафа!"), false);
+                        }
+                        found = true;
+                    }
+                    player.sendMessage(Text.literal(found ? "Ты вытащил выжившего из шкафа!" : "В этом шкафу никого нет."), true);
+                    return ActionResult.SUCCESS;
+                }
                 if (!"survivor".equals(ROLES.get(id))) {
                     player.sendMessage(Text.literal("Только выжившие могут прятаться в шкафах."), true);
                     return ActionResult.FAIL;
@@ -360,8 +376,8 @@ public class HuntMod implements ModInitializer {
                         player.sendMessage(Text.literal("Ты уже ломаешь эту палету..."), true);
                         return ActionResult.SUCCESS;
                     }
-                    PALLET_BREAK_TICKS.put(pos, 100);
-                    player.sendMessage(Text.literal("Начал ломать палету. Это займёт 5 секунд!"), true);
+                    PALLET_BREAK_TICKS.put(pos, 40);
+                    player.sendMessage(Text.literal("Начал ломать палету. Это займёт 2 секунды!"), true);
                     return ActionResult.SUCCESS;
                 }
                 if (!"survivor".equals(role)) return ActionResult.FAIL;
