@@ -88,6 +88,33 @@ public class HuntMod implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(RolePayload.ID, RolePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ExitActionPayload.ID, ExitActionPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(ExitActionPayload.ID, (payload, context) ->
+            context.player().getServer().execute(() -> {
+                ServerPlayerEntity player = context.player();
+                UUID id = player.getUuid();
+                if (!running || !"survivor".equals(ROLES.get(id))) return;
+
+                BlockPos hidingSpot = HIDING.get(id);
+                if (hidingSpot != null) {
+                    HIDING.remove(id);
+                    player.setInvisible(false);
+                    player.teleport(player.getServerWorld(), hidingSpot.getX() + 0.5, hidingSpot.getY(),
+                        hidingSpot.getZ() + 1.5, java.util.Set.of(), player.getYaw(), player.getPitch());
+                    player.sendMessage(Text.literal("Ты вышел из шкафа."), true);
+                    return;
+                }
+
+                BlockPos generator = REPAIRING.remove(id);
+                if (generator != null) {
+                    REPAIR_TICKS.remove(id);
+                    SKILL_CHECK_WINDOW.remove(id);
+                    TOOLBOX_USE_TICKS.remove(id);
+                    player.sendMessage(Text.literal("Ты прекратил ремонт. Прогресс сохранён: "
+                        + REPAIR_PROGRESS.getOrDefault(generator, 0) + "%."), true);
+                }
+            })
+        );
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("hunt")
                 .then(literal("join")
@@ -390,15 +417,12 @@ public class HuntMod implements ModInitializer {
                     return ActionResult.FAIL;
                 }
                 if (HIDING.containsKey(id)) {
-                    HIDING.remove(id);
-                    player.setInvisible(false);
-                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 1.5, java.util.Set.of(), player.getYaw(), player.getPitch());
-                    player.sendMessage(Text.literal("Ты вышел из шкафа."), true);
+                    player.sendMessage(Text.literal("Чтобы выйти из шкафа, нажми SHIFT."), true);
                 } else {
                     HIDING.put(id, pos);
                     player.setInvisible(true);
                     player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch());
-                    player.sendMessage(Text.literal("Ты спрятался в шкафу. Нажми на шкаф ещё раз, чтобы выйти."), true);
+                    player.sendMessage(Text.literal("Ты спрятался в шкафу. Нажми SHIFT, чтобы выйти."), true);
                 }
                 return ActionResult.SUCCESS;
             }
