@@ -1,10 +1,19 @@
 {
-  "credit": "Hunt: Generators",
+  "credit": "Hunt: Generators - textured spiked club",
   "parent": "minecraft:item/handheld",
-  "textures": {"layer0": "minecraft:block/oak_planks", "particle": "minecraft:block/oak_planks"},
+  "textures": {
+    "wood": "minecraft:block/spruce_planks",
+    "dark": "minecraft:block/dark_oak_log",
+    "wrap": "minecraft:block/stripped_spripped_spruce_log",
+    "metal": "minecraft:block/iron_block",
+    "particle": "minecraft:block/spruce_planks"
+  },
   "elements": [
-    {"from":[6,0,6],"to":[10,9,10],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}},
-    {"from":[4,8,4],"to":[12,13,12],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}},
-    {"from":[3,12,3],"to":[13,15,13],"faces":{"north":{"texture":"#layer0"},"south":{"texture":"#layer0"},"east":{"texture":"#layer0"},"west":{"texture":"#layer0"},"up":{"texture":"#layer0"},"down":{"texture":"#layer0"}}}
+    {"from":[7,0,7],"to":[9,8,9],"faces":{"north":{"texture":"#dark"},"south":{"texture":"#dark"},"east":{"texture":"#dark"},"west":{"texture":"#dark"},"up":{"texture":"#wood"},"down":{"texture":"#dark"}}},
+    {"from":[6,7,6],"to":[10,9,10],"faces":{"north":{"texture":"#wrap"},"south":{"texture":"#wrap"},"east":{"texture":"#wrap"},"west":{"texture":"#wrap"},"up":{"texture":"#wrap"},"down":{"texture":"#dark"}}},
+    {"from":[4,8,4],"to":[12,13,12],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#dark"},"east":{"texture":"#wood"},"west":{"texture":"#dark"},"up":{"texture":"#wood"},"down":{"texture":"#dark"}}},
+    {"from":[3,12,3],"to":[13,15,13],"faces":{"north":{"texture":"#dark"},"south":{"texture":"#wood"},"east":{"texture":"#dark"},"west":{"texture":"#wood"},"up":{"texture":"#wood"},"down":{"texture":"#dark"}}},
+    {"from":[2,10,6],"to":[4,12,8],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
+    {"from":[12,11,8],"to":[14,13,10],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}}
   ]
 }
