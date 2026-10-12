@@ -5,6 +5,11 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.world.GameMode;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.EquipmentSlot;
@@ -45,6 +50,10 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
     private static final Set<BlockPos> LOCKERS = new LinkedHashSet<>();
     private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
+    private static final Map<UUID, Integer> LIVES = new HashMap<>();
+    private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
+    private static final Set<UUID> ELIMINATED = new HashSet<>();
+    private static final long DASH_COOLDOWN_TICKS = 12000L;
     private static BlockPos gatePos = null;
     private static boolean running = false;
     private static boolean gateOpened = false;
@@ -52,6 +61,7 @@ public class HuntMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        PayloadTypeRegistry.playS2C().register(RolePayload.ID, RolePayload.CODEC);
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("hunt")
                 .then(literal("join")
@@ -82,6 +92,27 @@ public class HuntMod implements ModInitializer {
                         return 1;
                     })))
                 .then(literal("start").executes(ctx -> start(ctx.getSource().getServer(), ctx.getSource().getPlayerOrThrow())))
+                .then(literal("dash").executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    UUID id = player.getUuid();
+                    if (!running || !"killer".equals(ROLES.get(id))) {
+                        player.sendMessage(Text.literal("Рывок доступен только убийце во время раунда."), true);
+                        return 0;
+                    }
+                    long now = player.getServerWorld().getTime();
+                    long ready = DASH_READY_AT.getOrDefault(id, 0L);
+                    if (now < ready) {
+                        long seconds = (ready - now + 19) / 20;
+                        player.sendMessage(Text.literal("Рывок перезаряжается: " + (seconds / 60) + " мин. " + (seconds % 60) + " сек."), true);
+                        return 0;
+                    }
+                    var direction = player.getRotationVec(1.0F);
+                    player.addVelocity(direction.x * 1.8, 0.25, direction.z * 1.8);
+                    player.velocityModified = true;
+                    DASH_READY_AT.put(id, now + DASH_COOLDOWN_TICKS);
+                    player.sendMessage(Text.literal("Рывок использован! Перезарядка — 10 минут."), true);
+                    return 1;
+                }))
                 .then(literal("status").executes(ctx -> {
                     var source = ctx.getSource();
                     source.sendFeedback(() -> Text.literal("Генераторы: " + REPAIRED.size() + "/5. Ворота: " + (gateOpened ? "открыты" : "закрыты") + ". Раунд: " + (running ? "идёт" : "не запущен") + "."), false);
@@ -144,6 +175,31 @@ public class HuntMod implements ModInitializer {
                     return 1;
                 }))
             );
+        });
+
+        AttackEntityCallback.EVENT.register((attacker, world, hand, target, hitResult) -> {
+            if (world.isClient || !running || !(attacker instanceof ServerPlayerEntity killer)
+                    || !(target instanceof ServerPlayerEntity survivor)
+                    || !"killer".equals(ROLES.get(killer.getUuid()))
+                    || !"survivor".equals(ROLES.get(survivor.getUuid()))
+                    || ELIMINATED.contains(survivor.getUuid())) return ActionResult.PASS;
+            UUID sid = survivor.getUuid();
+            int remaining = LIVES.getOrDefault(sid, 2) - 1;
+            LIVES.put(sid, remaining);
+            if (remaining <= 0) {
+                ELIMINATED.add(sid);
+                survivor.changeGameMode(GameMode.SPECTATOR);
+                survivor.sendMessage(Text.literal("Ты потерял обе жизни и выбыл из раунда."), false);
+                killer.sendMessage(Text.literal("Выживший выбыл!"), true);
+            } else {
+                survivor.setHealth(survivor.getMaxHealth());
+                survivor.setFireTicks(0);
+                survivor.setInvulnerable(true);
+                survivor.getServerWorld().getServer().execute(() -> survivor.setInvulnerable(false));
+                survivor.sendMessage(Text.literal("Тебя поймали! Осталась 1 жизнь."), false);
+                killer.sendMessage(Text.literal("У выжившего осталась 1 жизнь."), true);
+            }
+            return ActionResult.SUCCESS;
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
