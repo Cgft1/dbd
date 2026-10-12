@@ -2,11 +2,11 @@
   "credit": "Hunt: Generators - textured bloodied machete",
   "parent": "minecraft:item/handheld",
   "textures": {
-    "handle": "minecraft:block/dark_oak_planks",
-    "metal": "minecraft:block/iron_block",
-    "edge": "minecraft:block/iron_block",
-    "wrap": "minecraft:block/red_wool",
-    "particle": "minecraft:block/iron_block"
+    "handle": "minecraft:item/stick",
+    "metal": "minecraft:item/iron_ingot",
+    "edge": "minecraft:item/iron_ingot",
+    "wrap": "minecraft:item/red_dye",
+    "particle": "minecraft:item/iron_ingot"
   },
   "elements": [
     {"from":[7,0,7],"to":[9,5,9],"faces":{"north":{"texture":"#handle"},"south":{"texture":"#handle"},"east":{"texture":"#handle"},"west":{"texture":"#handle"},"up":{"texture":"#handle"},"down":{"texture":"#handle"}}},
