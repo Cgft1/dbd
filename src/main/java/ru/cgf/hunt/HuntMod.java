@@ -54,6 +54,10 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "pallet"), new Block(Block.Settings.copy(Blocks.OAK_PLANKS).strength(2.0f)));
     public static final Item PALLET_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "pallet"), new BlockItem(PALLET_BLOCK, new Item.Settings()));
+    public static final Block TRAP_BLOCK = Registry.register(Registries.BLOCK,
+        Identifier.of("hunt_generators", "trap"), new Block(Block.Settings.copy(Blocks.IRON_BLOCK).strength(1.0f).nonOpaque()));
+    public static final Item TRAP_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "trap"), new BlockItem(TRAP_BLOCK, new Item.Settings()));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -68,6 +72,9 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
     private static final Map<UUID, Integer> TOOLBOX_USE_TICKS = new HashMap<>();
     private static final Map<BlockPos, Integer> PALLET_BREAK_TICKS = new HashMap<>();
+    private static final Map<UUID, Integer> PALLET_BREAKING = new HashMap<>();
+    private static final Map<BlockPos, Integer> TRAP_POSITIONS = new HashMap<>();
+    private static final Map<UUID, Integer> TRAPPED_TICKS = new HashMap<>();
     private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
     private static final long DASH_COOLDOWN_TICKS = 12000L;
@@ -179,6 +186,9 @@ public class HuntMod implements ModInitializer {
                     LOCKERS.add(locker);
                     BlockPos pallet = base.add(0, 0, 2).toImmutable();
                     world.setBlockState(pallet, PALLET_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                    BlockPos trap = base.add(2, 0, 2).toImmutable();
+                    world.setBlockState(trap, TRAP_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                    TRAP_POSITIONS.put(trap, 0);
 
                     ROLES.put(player.getUuid(), role);
                     running = true;
@@ -195,6 +205,7 @@ public class HuntMod implements ModInitializer {
                     player.getInventory().insertStack(new ItemStack(MEDKIT_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(FLASHLIGHT_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(PALLET_ITEM, 1));
+                    player.getInventory().insertStack(new ItemStack(TRAP_ITEM, 3));
                     player.getInventory().insertStack(new ItemStack(LOCKER_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(GENERATOR_ITEM, 1));
                     player.sendMessage(Text.literal("ТЕСТОВЫЙ РЕЖИМ: роль " + (role.equals("killer") ? "УБИЙЦА" : "ВЫЖИВШИЙ") + ". Арена и предметы созданы. Прыжок отключён."), false);
@@ -377,6 +388,7 @@ public class HuntMod implements ModInitializer {
                         return ActionResult.SUCCESS;
                     }
                     PALLET_BREAK_TICKS.put(pos, 40);
+                    PALLET_BREAKING.put(id, 40);
                     player.sendMessage(Text.literal("Начал ломать палету. Это займёт 2 секунды!"), true);
                     return ActionResult.SUCCESS;
                 }
@@ -386,6 +398,18 @@ public class HuntMod implements ModInitializer {
                 double z = pos.getZ() + 0.5 + facing.getOffsetZ() * 1.8;
                 player.teleport(serverWorld, x, pos.getY(), z, java.util.Set.of(), player.getYaw(), player.getPitch());
                 player.sendMessage(Text.literal("Ты перелез через доски!"), true);
+                return ActionResult.SUCCESS;
+            }
+            if ("killer".equals(ROLES.get(id)) && player.getStackInHand(hand).isOf(TRAP_ITEM)) {
+                BlockPos trapPos = pos.up();
+                if (!world.getBlockState(trapPos).isAir()) {
+                    player.sendMessage(Text.literal("Поставь капкан на свободный блок."), true);
+                    return ActionResult.FAIL;
+                }
+                world.setBlockState(trapPos, TRAP_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                TRAP_POSITIONS.put(trapPos.toImmutable(), 0);
+                player.getStackInHand(hand).decrement(1);
+                player.sendMessage(Text.literal("Капкан установлен! Выживший, наступивший на него, будет пойман на 3 секунды."), true);
                 return ActionResult.SUCCESS;
             }
             if (!GENERATORS.contains(pos)) return ActionResult.PASS;
@@ -455,6 +479,28 @@ public class HuntMod implements ModInitializer {
                     }
                 }
             }
+            for (Map.Entry<BlockPos, Integer> trapEntry : new ArrayList<>(TRAP_POSITIONS.entrySet())) {
+                BlockPos trapPos = trapEntry.getKey();
+                for (ServerPlayerEntity survivor : server.getPlayerManager().getPlayerList()) {
+                    if ("survivor".equals(ROLES.get(survivor.getUuid()))
+                            && !TRAPPED_TICKS.containsKey(survivor.getUuid())
+                            && survivor.getBlockPos().isWithinDistance(trapPos, 1.0)) {
+                        TRAPPED_TICKS.put(survivor.getUuid(), 60);
+                        survivor.sendMessage(Text.literal("Ты попался в капкан! Ты обездвижен на 3 секунды."), true);
+                        for (ServerPlayerEntity killer : server.getPlayerManager().getPlayerList()) {
+                            if ("killer".equals(ROLES.get(killer.getUuid()))) killer.sendMessage(Text.literal("Выживший попался в твой капкан!"), true);
+                        }
+                        for (ServerWorld candidateWorld : server.getWorlds()) {
+                            if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
+                                candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                break;
+                            }
+                        }
+                        TRAP_POSITIONS.remove(trapPos);
+                        break;
+                    }
+                }
+            }
             Iterator<Map.Entry<BlockPos, Integer>> palletIterator = PALLET_BREAK_TICKS.entrySet().iterator();
             while (palletIterator.hasNext()) {
                 Map.Entry<BlockPos, Integer> entry = palletIterator.next();
@@ -494,6 +540,22 @@ public class HuntMod implements ModInitializer {
                         continue;
                     }
                 }
+                Integer trapped = TRAPPED_TICKS.get(id);
+                if (trapped != null) {
+                    p.setVelocity(0, 0, 0);
+                    p.velocityModified = true;
+                    if (trapped <= 1) {
+                        TRAPPED_TICKS.remove(id);
+                        p.sendMessage(Text.literal("Ты освободился из капкана!"), true);
+                    } else TRAPPED_TICKS.put(id, trapped - 1);
+                }
+                Integer breaking = PALLET_BREAKING.get(id);
+                if (breaking != null) {
+                    p.setVelocity(0, 0, 0);
+                    p.velocityModified = true;
+                    if (breaking <= 1) PALLET_BREAKING.remove(id);
+                    else PALLET_BREAKING.put(id, breaking - 1);
+                }
                 BlockPos target = REPAIRING.get(id);
                 if (target == null) continue;
                 if (!"survivor".equals(ROLES.get(id)) || p.squaredDistanceTo(target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5) > 25) {
@@ -503,6 +565,8 @@ public class HuntMod implements ModInitializer {
                     p.sendMessage(Text.literal("Починка прервана."), true);
                     continue;
                 }
+                p.setVelocity(0, 0, 0);
+                p.velocityModified = true;
                 int window = SKILL_CHECK_WINDOW.getOrDefault(id, 0);
                 if (window > 0) {
                     SKILL_CHECK_WINDOW.put(id, window - 1);
