@@ -17,7 +17,12 @@ public class HuntClient implements ClientModInitializer {
             })
         );
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && !role.isEmpty()) applyPerspective(client);
+            if (client.player != null && !role.isEmpty()) {
+                applyPerspective(client);
+                if (client.options.sneakKey.wasPressed()) {
+                    ClientPlayNetworking.send(new ExitActionPayload("shift"));
+                }
+            }
         });
     }
 
