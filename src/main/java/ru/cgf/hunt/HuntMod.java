@@ -75,6 +75,8 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> PALLET_BREAKING = new HashMap<>();
     private static final Map<BlockPos, Integer> TRAP_POSITIONS = new HashMap<>();
     private static final Map<UUID, Integer> TRAPPED_TICKS = new HashMap<>();
+    private static final Map<UUID, BlockPos> TRAPPED_AT = new HashMap<>();
+    private static final Map<UUID, Integer> TRAP_ESCAPE_CLICKS = new HashMap<>();
     private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
     private static final long DASH_COOLDOWN_TICKS = 12000L;
@@ -346,6 +348,26 @@ public class HuntMod implements ModInitializer {
             if (world.isClient || !(world instanceof ServerWorld serverWorld) || !running) return ActionResult.PASS;
             BlockPos pos = hit.getBlockPos().toImmutable();
             UUID id = player.getUuid();
+            if ("survivor".equals(ROLES.get(id)) && TRAPPED_TICKS.containsKey(id)) {
+                BlockPos trappedAt = TRAPPED_AT.get(id);
+                if (trappedAt != null && trappedAt.equals(pos) && world.getBlockState(pos).isOf(TRAP_BLOCK)) {
+                    int clicks = TRAP_ESCAPE_CLICKS.getOrDefault(id, 0) + 1;
+                    TRAP_ESCAPE_CLICKS.put(id, clicks);
+                    if (clicks >= 5) {
+                        TRAPPED_TICKS.remove(id);
+                        TRAPPED_AT.remove(id);
+                        TRAP_ESCAPE_CLICKS.remove(id);
+                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                        TRAP_POSITIONS.remove(pos);
+                        player.sendMessage(Text.literal("Ты выбрался из капкана! Капкан сломан."), false);
+                    } else {
+                        player.sendMessage(Text.literal("Выбирайся из капкана: " + clicks + "/5 нажатий."), true);
+                    }
+                    return ActionResult.SUCCESS;
+                }
+                player.sendMessage(Text.literal("Ты в капкане! Нажимай ПКМ именно по капкану ещё " + (5 - TRAP_ESCAPE_CLICKS.getOrDefault(id, 0)) + " раз."), true);
+                return ActionResult.FAIL;
+            }
             if (LOCKERS.contains(pos)) {
                 if ("killer".equals(ROLES.get(id))) {
                     boolean found = false;
@@ -482,21 +504,34 @@ public class HuntMod implements ModInitializer {
             for (Map.Entry<BlockPos, Integer> trapEntry : new ArrayList<>(TRAP_POSITIONS.entrySet())) {
                 BlockPos trapPos = trapEntry.getKey();
                 for (ServerPlayerEntity survivor : server.getPlayerManager().getPlayerList()) {
-                    if ("survivor".equals(ROLES.get(survivor.getUuid()))
-                            && !TRAPPED_TICKS.containsKey(survivor.getUuid())
-                            && survivor.getBlockPos().isWithinDistance(trapPos, 1.0)) {
-                        TRAPPED_TICKS.put(survivor.getUuid(), 60);
-                        survivor.sendMessage(Text.literal("Ты попался в капкан! Ты обездвижен на 3 секунды."), true);
+                    UUID survivorId = survivor.getUuid();
+                    if ("survivor".equals(ROLES.get(survivorId))
+                            && !TRAPPED_TICKS.containsKey(survivorId)
+                            && survivor.getBlockPos().isWithinDistance(trapPos, 0.65)) {
+                        int remainingLives = LIVES.getOrDefault(survivorId, 2) - 1;
+                        LIVES.put(survivorId, remainingLives);
+                        if (remainingLives <= 0) {
+                            ELIMINATED.add(survivorId);
+                            survivor.changeGameMode(GameMode.SPECTATOR);
+                            survivor.sendMessage(Text.literal("Капкан забрал последнюю жизнь. Ты выбыл из раунда."), false);
+                        } else {
+                            TRAPPED_TICKS.put(survivorId, 1);
+                            TRAPPED_AT.put(survivorId, trapPos.toImmutable());
+                            TRAP_ESCAPE_CLICKS.put(survivorId, 0);
+                            survivor.sendMessage(Text.literal("Ты попался в капкан и потерял 1 жизнь! Осталась 1 жизнь. Нажми ПКМ по капкану 5 раз, чтобы выбраться."), false);
+                        }
                         for (ServerPlayerEntity killer : server.getPlayerManager().getPlayerList()) {
-                            if ("killer".equals(ROLES.get(killer.getUuid()))) killer.sendMessage(Text.literal("Выживший попался в твой капкан!"), true);
+                            if ("killer".equals(ROLES.get(killer.getUuid()))) killer.sendMessage(Text.literal("Выживший попался в твой капкан и потерял жизнь!"), true);
                         }
-                        for (ServerWorld candidateWorld : server.getWorlds()) {
-                            if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
-                                candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                                break;
+                        if (remainingLives <= 0) {
+                            for (ServerWorld candidateWorld : server.getWorlds()) {
+                                if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
+                                    candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                    break;
+                                }
                             }
+                            TRAP_POSITIONS.remove(trapPos);
                         }
-                        TRAP_POSITIONS.remove(trapPos);
                         break;
                     }
                 }
@@ -544,10 +579,6 @@ public class HuntMod implements ModInitializer {
                 if (trapped != null) {
                     p.setVelocity(0, 0, 0);
                     p.velocityModified = true;
-                    if (trapped <= 1) {
-                        TRAPPED_TICKS.remove(id);
-                        p.sendMessage(Text.literal("Ты освободился из капкана!"), true);
-                    } else TRAPPED_TICKS.put(id, trapped - 1);
                 }
                 Integer breaking = PALLET_BREAKING.get(id);
                 if (breaking != null) {
