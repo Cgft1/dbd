@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -246,7 +247,7 @@ public class HuntMod implements ModInitializer {
                     int progress = Math.min(100, REPAIR_PROGRESS.getOrDefault(target, 0) + (hasToolbox ? 2 : 1));
                     if (hasToolbox) {
                         var toolbox = p.getMainHandStack().isOf(TOOLBOX_ITEM) ? p.getMainHandStack() : p.getOffHandStack();
-                        toolbox.damage(1, p);
+                        toolbox.damage(1, p, p.getMainHandStack().isOf(TOOLBOX_ITEM) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
                     }
                     REPAIR_PROGRESS.put(target, progress);
                     p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
