@@ -1,5 +1,8 @@
 {
   "item.hunt_generators.medkit": "Аптечка",
   "item.hunt_generators.flashlight": "Фонарик",
-  "block.hunt_generators.pallet": "Доски для перелезания"
+  "block.hunt_generators.pallet": "Доски для перелезания",
+  "item.hunt_generators.club": "Дубина",
+  "item.hunt_generators.machete": "Мачете",
+  "item.hunt_generators.trap": "Капкан"
 }
