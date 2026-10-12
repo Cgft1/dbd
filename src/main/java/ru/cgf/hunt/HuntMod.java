@@ -65,6 +65,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
+    private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
     private static final long DASH_COOLDOWN_TICKS = 12000L;
     private static BlockPos gatePos = null;
@@ -279,7 +280,13 @@ public class HuntMod implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             if (world.getBlockState(pos).isOf(PALLET_BLOCK)) {
-                if (!"survivor".equals(ROLES.get(id))) return ActionResult.FAIL;
+                String role = ROLES.get(id);
+                if ("killer".equals(role)) {
+                    world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                    player.sendMessage(Text.literal("Ты сломал палету!"), true);
+                    return ActionResult.SUCCESS;
+                }
+                if (!"survivor".equals(role)) return ActionResult.FAIL;
                 var facing = player.getHorizontalFacing();
                 double x = pos.getX() + 0.5 + facing.getOffsetX() * 1.8;
                 double z = pos.getZ() + 0.5 + facing.getOffsetZ() * 1.8;
@@ -326,7 +333,16 @@ public class HuntMod implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!running) return;
+            if (!running) {
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    Double originalJumpStrength = ORIGINAL_JUMP_STRENGTH.remove(player.getUuid());
+                    if (originalJumpStrength != null) {
+                        var jump = player.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
+                        if (jump != null) jump.setBaseValue(originalJumpStrength);
+                    }
+                }
+                return;
+            }
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 String role = ROLES.get(player.getUuid());
                 if (role != null) {
@@ -338,6 +354,11 @@ public class HuntMod implements ModInitializer {
                     }
                     var speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
                     if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
+                    var jump = player.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
+                    if (jump != null) {
+                        ORIGINAL_JUMP_STRENGTH.putIfAbsent(player.getUuid(), jump.getBaseValue());
+                        jump.setBaseValue(0.0);
+                    }
                 }
             }
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
@@ -445,6 +466,11 @@ public class HuntMod implements ModInitializer {
             ServerPlayNetworking.send(p, new RolePayload(role));
             var speed = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
             if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
+            var jump = p.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
+            if (jump != null) {
+                ORIGINAL_JUMP_STRENGTH.putIfAbsent(p.getUuid(), jump.getBaseValue());
+                jump.setBaseValue(0.0);
+            }
         }
         server.getPlayerManager().broadcast(Text.literal("Раунд начался! Убийца: " + players.get(0).getName().getString() + ". Выжившие: " + (players.size() - 1) + ". Почините 5 генераторов и доберитесь до ворот!"), false);
         for (ServerPlayerEntity p : players) {
