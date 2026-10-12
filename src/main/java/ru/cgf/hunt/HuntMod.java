@@ -74,6 +74,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, BlockPos> REPAIRING = new HashMap<>();
     private static final Map<UUID, Integer> REPAIR_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
+    private static final Map<UUID, Integer> SKILL_CHECK_COOLDOWN = new HashMap<>();
     private static final Set<BlockPos> LOCKERS = new LinkedHashSet<>();
     private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
@@ -255,6 +256,7 @@ public class HuntMod implements ModInitializer {
                     REPAIRING.clear();
                     REPAIR_TICKS.clear();
                     SKILL_CHECK_WINDOW.clear();
+                    SKILL_CHECK_COOLDOWN.clear();
                     LOCKERS.clear();
                     HIDING.clear();
                     LIVES.clear();
@@ -715,12 +717,24 @@ public class HuntMod implements ModInitializer {
                     REPAIRING.remove(id);
                     REPAIR_TICKS.remove(id);
                     SKILL_CHECK_WINDOW.remove(id);
+                    SKILL_CHECK_COOLDOWN.remove(id);
                     p.sendMessage(Text.literal("Починка прервана."), true);
                     continue;
                 }
                 p.setVelocity(0, 0, 0);
                 p.velocityModified = true;
                 int window = SKILL_CHECK_WINDOW.getOrDefault(id, 0);
+                if (window <= 0) {
+                    int cooldown = SKILL_CHECK_COOLDOWN.getOrDefault(id, 100 + new Random().nextInt(201));
+                    cooldown--;
+                    if (cooldown <= 0) {
+                        SKILL_CHECK_WINDOW.put(id, 40);
+                        SKILL_CHECK_COOLDOWN.put(id, 100 + new Random().nextInt(201));
+                        p.sendMessage(Text.literal("МИНИ-ИГРА! Нажми ПКМ по генератору в течение 2 секунд!"), true);
+                    } else {
+                        SKILL_CHECK_COOLDOWN.put(id, cooldown);
+                    }
+                }
                 if (window > 0) {
                     SKILL_CHECK_WINDOW.put(id, window - 1);
                     if (window == 1) {
@@ -758,6 +772,17 @@ public class HuntMod implements ModInitializer {
                     if (progress >= 100) {
                         p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.9f, 1.0f);
                         REPAIRED.add(target);
+                        SKILL_CHECK_COOLDOWN.remove(id);
+                        // Generator completion reveals the generator to the killer for 4 seconds.
+                        for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+                            if ("killer".equals(ROLES.get(online.getUuid()))) {
+                                online.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 80, 0, false, false, true));
+                                online.sendMessage(Text.literal("Генератор починен: " + target.getX() + ", " + target.getY() + ", " + target.getZ()), true);
+                            } else if ("survivor".equals(ROLES.get(online.getUuid()))
+                                    && online.squaredDistanceTo(target.getX() + 0.5, target.getY() + 0.5, target.getZ() + 0.5) <= 25.0) {
+                                online.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 40, 0, false, false, true));
+                            }
+                        }
                         REPAIRING.remove(id);
                         REPAIR_TICKS.remove(id);
                         SKILL_CHECK_WINDOW.remove(id);
@@ -767,9 +792,6 @@ public class HuntMod implements ModInitializer {
                             if (gatePos != null) server.getOverworld().setBlockState(gatePos, Blocks.AIR.getDefaultState());
                             server.getPlayerManager().broadcast(Text.literal("Все генераторы починены! Ворота открыты — выжившие, бегите!"), false);
                         }
-                    } else if (progress % 10 == 0 && SKILL_CHECK_WINDOW.getOrDefault(id, 0) == 0) {
-                        SKILL_CHECK_WINDOW.put(id, 40);
-                        p.sendMessage(Text.literal("МИНИ-ИГРА! Нажми ПКМ по генератору в течение 2 секунд!"), true);
                     }
                 }
             }
@@ -808,7 +830,7 @@ public class HuntMod implements ModInitializer {
         ROLES.put(players.get(0).getUuid(), "killer");
         for (int i = 1; i < players.size(); i++) ROLES.put(players.get(i).getUuid(), "survivor");
         REPAIRED.clear();
-        REPAIR_PROGRESS.clear(); REPAIRING.clear(); REPAIR_TICKS.clear(); SKILL_CHECK_WINDOW.clear();
+        REPAIR_PROGRESS.clear(); REPAIRING.clear(); REPAIR_TICKS.clear(); SKILL_CHECK_WINDOW.clear(); SKILL_CHECK_COOLDOWN.clear();
         gateOpened = false;
         escapeAnnounced = false;
         running = true;
