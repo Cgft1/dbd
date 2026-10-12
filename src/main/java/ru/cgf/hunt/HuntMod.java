@@ -264,6 +264,14 @@ public class HuntMod implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (!running) return;
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                String role = ROLES.get(player.getUuid());
+                if (role != null) {
+                    ServerPlayNetworking.send(player, new RolePayload(role));
+                    var speed = player.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+                    if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
+                }
+            }
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
                 UUID id = p.getUuid();
                 BlockPos hidingSpot = HIDING.get(id);
@@ -363,6 +371,13 @@ public class HuntMod implements ModInitializer {
         gateOpened = false;
         escapeAnnounced = false;
         running = true;
+        for (ServerPlayerEntity p : players) {
+            String role = ROLES.get(p.getUuid());
+            if ("survivor".equals(role)) LIVES.put(p.getUuid(), 2);
+            ServerPlayNetworking.send(p, new RolePayload(role));
+            var speed = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+            if (speed != null) speed.setBaseValue("killer".equals(role) ? 0.11 : 0.1);
+        }
         server.getPlayerManager().broadcast(Text.literal("Раунд начался! Убийца: " + players.get(0).getName().getString() + ". Выжившие: " + (players.size() - 1) + ". Почините 5 генераторов и доберитесь до ворот!"), false);
         for (ServerPlayerEntity p : players) {
             p.sendMessage(Text.literal("Твоя роль: " + (ROLES.get(p.getUuid()).equals("killer") ? "УБИЙЦА" : "ВЫЖИВШИЙ")), false);
