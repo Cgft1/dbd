@@ -50,6 +50,10 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
     public static final Item TOOLBOX_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "toolbox"), new Item(new Item.Settings().maxDamage(200)));
+    public static final Item WORN_TOOLBOX_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "worn_toolbox"), new Item(new Item.Settings().maxCount(1)));
+    public static final Item ENGINEER_TOOLS_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "engineer_tools"), new Item(new Item.Settings().maxCount(1)));
     public static final Item MEDKIT_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "medkit"), new Item(new Item.Settings().maxDamage(4)));
     public static final Item FLASHLIGHT_ITEM = Registry.register(Registries.ITEM,
@@ -789,6 +793,8 @@ public class HuntMod implements ModInitializer {
                 }
                 int ticks = REPAIR_TICKS.getOrDefault(id, 0) + 1;
                 REPAIR_TICKS.put(id, ticks);
+                boolean hasWornToolbox = p.getMainHandStack().isOf(WORN_TOOLBOX_ITEM) || p.getOffHandStack().isOf(WORN_TOOLBOX_ITEM);
+                boolean hasEngineerTools = p.getMainHandStack().isOf(ENGINEER_TOOLS_ITEM) || p.getOffHandStack().isOf(ENGINEER_TOOLS_ITEM);
                 boolean hasToolbox = p.getMainHandStack().isOf(TOOLBOX_ITEM) || p.getOffHandStack().isOf(TOOLBOX_ITEM);
                 if (hasToolbox) {
                     int usedTicks = TOOLBOX_USE_TICKS.getOrDefault(id, 0) + 1;
@@ -802,6 +808,28 @@ public class HuntMod implements ModInitializer {
                     }
                 } else {
                     TOOLBOX_USE_TICKS.remove(id);
+                }
+                // Special kits finish a generator in the specified real-time duration.
+                if (hasWornToolbox || hasEngineerTools) {
+                    int requiredTicks = hasWornToolbox ? 40 : 500; // 2 sec / 25 sec at 20 TPS
+                    int gained = Math.min(100, (int)Math.floor(ticks * 100.0 / requiredTicks));
+                    int current = REPAIR_PROGRESS.getOrDefault(target, 0);
+                    if (gained > current) {
+                        REPAIR_PROGRESS.put(target, gained);
+                        p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.BLOCKS, 0.45f, 1.5f);
+                        p.sendMessage(Text.literal("Прогресс генератора: " + gained + "%"), true);
+                    }
+                    if (gained >= 100) {
+                        if (hasWornToolbox) {
+                            if (p.getMainHandStack().isOf(WORN_TOOLBOX_ITEM)) p.getMainHandStack().decrement(1);
+                            else p.getOffHandStack().decrement(1);
+                        } else {
+                            if (p.getMainHandStack().isOf(ENGINEER_TOOLS_ITEM)) p.getMainHandStack().decrement(1);
+                            else p.getOffHandStack().decrement(1);
+                        }
+                        REPAIR_TICKS.put(id, 0);
+                    }
+                    continue;
                 }
                 int threshold = hasToolbox ? 10 : 20;
                 if (ticks >= threshold) {
