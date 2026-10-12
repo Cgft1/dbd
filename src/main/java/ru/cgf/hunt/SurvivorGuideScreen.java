@@ -52,7 +52,30 @@ public class SurvivorGuideScreen extends Screen {
         int rowGap = 8;
         int rowH = (bottom - top - rowGap * 2) / 3;
         if (colW < 145 || rowH < 90) {
-            context.drawCenteredTextWithShadow(this.textRenderer, "Увеличь окно Minecraft, чтобы увидеть руководство.", this.width / 2, this.height / 2, 0xFFFFFFFF);
+            // Compact layout for Minecraft GUI scales that leave a narrow logical screen.
+            int panelW = Math.min(this.width - 16, 360);
+            int left = (this.width - panelW) / 2;
+            int panelH = Math.min(this.height - 54, 300);
+            int panelTop = Math.max(8, (this.height - panelH - 28) / 2);
+            context.drawCenteredTextWithShadow(this.textRenderer, "ПАМЯТКА ВЫЖИВШЕГО", this.width / 2, 8, 0xFFFFD36A);
+            panel(context, left, panelTop, panelW, panelH, 0xFF5E9FCB);
+            int y = panelTop + 10;
+            String[] tips = {
+                "ЦЕЛЬ: почини 5 генераторов и открой ворота.",
+                "РЕМОНТ: ПКМ по генератору; мини-игра",
+                "появится в случайный момент.",
+                "ДОСКИ: перепрыгивай их, чтобы сбежать.",
+                "Маньяк может сломать доску.",
+                "КАПКАНЫ: опасны — избегай их.",
+                "ШКАФЫ: ПКМ — спрятаться, SHIFT — выйти.",
+                "ПОСЛЕ РЕМОНТА: маньяк получает подсказку",
+                "4 секунды; выжившие рядом светятся 2 сек."
+            };
+            for (String tip : tips) {
+                if (y + 12 > panelTop + panelH - 5) break;
+                line(context, tip, left + 8, y, 0xFFE6EDF5);
+                y += 15;
+            }
             super.render(context, mouseX, mouseY, delta);
             return;
         }
