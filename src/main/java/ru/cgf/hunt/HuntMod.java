@@ -269,7 +269,7 @@ public class HuntMod implements ModInitializer {
                 }
                 return ActionResult.SUCCESS;
             }
-            if (PALLETS.contains(pos)) {
+            if (world.getBlockState(pos).isOf(PALLET_BLOCK)) {
                 if (!"survivor".equals(ROLES.get(id))) return ActionResult.FAIL;
                 var facing = player.getHorizontalFacing();
                 double x = pos.getX() + 0.5 + facing.getOffsetX() * 1.8;
