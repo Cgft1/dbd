@@ -127,7 +127,7 @@ public class HuntMod implements ModInitializer {
                     case "u" -> {
                         killer.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 100, 1, false, true, true));
                         killer.sendMessage(Text.literal("Ярость! Скорость повышена на 5 секунд. Перезарядка: 35 сек."), true);
-                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.PLAYERS, 0.8f, 1.0f);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR.value(), SoundCategory.PLAYERS, 0.8f, 1.0f);
                     }
                     case "i" -> {
                         for (ServerPlayerEntity target : killer.getServerWorld().getPlayers()) {
@@ -138,7 +138,7 @@ public class HuntMod implements ModInitializer {
                             }
                         }
                         killer.sendMessage(Text.literal("Ударная волна! Выжившие в радиусе 8 блоков замедлены и ослеплены. Перезарядка: 40 сек."), true);
-                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+                        killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 0.6f, 1.4f);
                     }
                 }
             })
