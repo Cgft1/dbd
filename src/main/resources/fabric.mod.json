@@ -4,11 +4,18 @@
   "version": "${version}",
   "name": "Hunt: Generators",
   "description": "Asymmetric horror game: one killer, up to five survivors, five generators and an escape gate.",
-  "authors": ["Cgft1"],
+  "authors": [
+    "Cgft1"
+  ],
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": ["ru.cgf.hunt.HuntMod"]
+    "main": [
+      "ru.cgf.hunt.HuntMod"
+    ],
+    "client": [
+      "ru.cgf.hunt.HuntClient"
+    ]
   },
   "depends": {
     "fabricloader": ">=0.15.0",
