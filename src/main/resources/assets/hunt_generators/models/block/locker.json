@@ -1,1 +1,6 @@
-¥ªŞÙ¢ç+iû[–‡$ıË›y©eµìmº·¬jYaº{`zw«jÚ+±¹hrOå¡É
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "hunt_generators:block/locker"
+  }
+}
