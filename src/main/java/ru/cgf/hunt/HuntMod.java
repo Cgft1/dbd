@@ -29,6 +29,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 
 import java.util.*;
 
@@ -490,6 +492,7 @@ public class HuntMod implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             REPAIRING.put(id, pos);
+            world.playSound(null, pos, SoundEvents.BLOCK_PISTON_EXTEND, SoundCategory.BLOCKS, 0.7f, 1.2f);
             REPAIR_TICKS.put(id, 0);
             SKILL_CHECK_WINDOW.put(id, 0);
             player.sendMessage(Text.literal("Начата починка. Прогресс: " + REPAIR_PROGRESS.getOrDefault(pos, 0) + "%"), true);
@@ -655,8 +658,10 @@ public class HuntMod implements ModInitializer {
                         toolbox.damage(1, p, p.getMainHandStack().isOf(TOOLBOX_ITEM) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
                     }
                     REPAIR_PROGRESS.put(target, progress);
+                    p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_NOTE_BLOCK_HAT, SoundCategory.BLOCKS, 0.45f, hasToolbox ? 1.6f : 1.2f);
                     p.sendMessage(Text.literal("Прогресс генератора: " + progress + "%"), true);
                     if (progress >= 100) {
+                        p.getServerWorld().playSound(null, target, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.9f, 1.0f);
                         REPAIRED.add(target);
                         REPAIRING.remove(id);
                         REPAIR_TICKS.remove(id);
