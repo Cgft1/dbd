@@ -45,6 +45,14 @@ public class HuntMod implements ModInitializer {
         Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
     public static final Item TOOLBOX_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "toolbox"), new Item(new Item.Settings().maxDamage(128)));
+    public static final Item MEDKIT_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "medkit"), new Item(new Item.Settings().maxDamage(4)));
+    public static final Item FLASHLIGHT_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "flashlight"), new Item(new Item.Settings().maxDamage(32)));
+    public static final Block PALLET_BLOCK = Registry.register(Registries.BLOCK,
+        Identifier.of("hunt_generators", "pallet"), new Block(Block.Settings.copy(Blocks.OAK_PLANKS).strength(2.0f)));
+    public static final Item PALLET_ITEM = Registry.register(Registries.ITEM,
+        Identifier.of("hunt_generators", "pallet"), new BlockItem(PALLET_BLOCK, new Item.Settings()));
     private static final Map<UUID, String> ROLES = new HashMap<>();
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
@@ -56,6 +64,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
+    private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
     private static final long DASH_COOLDOWN_TICKS = 12000L;
     private static BlockPos gatePos = null;
@@ -163,7 +172,7 @@ public class HuntMod implements ModInitializer {
                     escapeAnnounced = false;
                     REPAIRED.clear();
                     ROLES.clear();
-                    PALLETS.clear(); BLINDED_UNTIL.clear();
+                    BLINDED_UNTIL.clear();
                     ctx.getSource().getServer().getPlayerManager().broadcast(Text.literal("Раунд сброшен. Конфигурация генераторов и ворот сохранена."), false);
                     return 1;
                 }))
@@ -173,10 +182,9 @@ public class HuntMod implements ModInitializer {
                     escapeAnnounced = false;
                     REPAIRED.clear();
                     ROLES.clear();
-                    PALLETS.clear(); BLINDED_UNTIL.clear();
+                    BLINDED_UNTIL.clear();
                     GENERATORS.clear();
-                    LOCKERS.clear(); HIDING.clear(); PALLETS.clear();
-                    gatePos = null;
+                    LOCKERS.clear(); HIDING.clear(); gatePos = null;
                     ctx.getSource().sendFeedback(() -> Text.literal("Настройки генераторов и ворот очищены."), false);
                     return 1;
                 }))
@@ -201,7 +209,8 @@ public class HuntMod implements ModInitializer {
                 ServerPlayerEntity target = null;
                 double best = 144.0;
                 var look = user.getRotationVec(1.0F);
-                for (ServerPlayerEntity candidate : world.getPlayers()) {
+                for (var entity : world.getPlayers()) {
+                    if (!(entity instanceof ServerPlayerEntity candidate)) continue;
                     if (candidate == user || !"killer".equals(ROLES.get(candidate.getUuid()))) continue;
                     var delta = candidate.getEyePos().subtract(user.getEyePos());
                     double distance = delta.length();
