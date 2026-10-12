@@ -52,34 +52,35 @@ public class SurvivorGuideScreen extends Screen {
         int rowGap = 8;
         int rowH = (bottom - top - rowGap * 2) / 3;
         if (colW < 145 || rowH < 90) {
-            // Compact layout for Minecraft GUI scales that leave a narrow logical screen.
-            int panelW = Math.min(this.width - 16, 360);
-            int left = (this.width - panelW) / 2;
-            int panelH = Math.min(this.height - 54, 300);
-            int panelTop = Math.max(8, (this.height - panelH - 28) / 2);
-            context.drawCenteredTextWithShadow(this.textRenderer, "ПАМЯТКА ВЫЖИВШЕГО", this.width / 2, 8, 0xFFFFD36A);
-            panel(context, left, panelTop, panelW, panelH, 0xFF5E9FCB);
-            int y = panelTop + 10;
+            // Always show readable tips between the title and the bottom button.
+            int left = 12;
+            int right = this.width - 12;
+            int contentTop = 34;
+            int contentBottom = this.height - 42;
+            context.fill(left, contentTop, right, contentBottom, 0xF20C131D);
+            context.drawBorder(left, contentTop, right - left, Math.max(1, contentBottom - contentTop), 0xFF34465A);
+            context.fill(left, contentTop, right, contentTop + 2, 0xFF5E9FCB);
             String[] tips = {
                 "ЦЕЛЬ: почини 5 генераторов и открой ворота.",
-                "РЕМОНТ: ПКМ по генератору; мини-игра",
-                "появится в случайный момент.",
-                "ДОСКИ: перепрыгивай их, чтобы сбежать.",
-                "Маньяк может сломать доску.",
-                "КАПКАНЫ: опасны — избегай их.",
+                "РЕМОНТ: ПКМ по генератору.",
+                "Мини-игра появляется в случайный момент.",
+                "ДОСКИ: перепрыгивай их, маньяк может ломать.",
+                "КАПКАНЫ: избегай их — они опасны.",
                 "ШКАФЫ: ПКМ — спрятаться, SHIFT — выйти.",
-                "ПОСЛЕ РЕМОНТА: маньяк получает подсказку",
-                "4 секунды; выжившие рядом светятся 2 сек."
+                "ПОСЛЕ РЕМОНТА: маньяк видит подсказку 4 сек.",
+                "Выжившие рядом светятся 2 сек. в радиусе 5 блоков."
             };
+            int available = Math.max(1, contentBottom - contentTop - 14);
+            int step = Math.max(10, Math.min(18, available / tips.length));
+            int y = contentTop + 8;
             for (String tip : tips) {
-                if (y + 12 > panelTop + panelH - 5) break;
+                if (y + 9 > contentBottom - 3) break;
                 line(context, tip, left + 8, y, 0xFFE6EDF5);
-                y += 15;
+                y += step;
             }
             super.render(context, mouseX, mouseY, delta);
             return;
         }
-
         heading(context, "ПАМЯТКА ВЫЖИВШЕГО", margin, 2, 0xFFFFD36A);
         int[] xs = {margin, margin + colW + gap, margin + (colW + gap) * 2};
         int[] ys = {top + 15, top + 15 + rowH + rowGap, top + 15 + (rowH + rowGap) * 2};
