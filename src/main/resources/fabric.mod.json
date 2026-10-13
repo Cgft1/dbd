@@ -3,20 +3,17 @@
   "id": "hunt_generators",
   "version": "${version}",
   "name": "Ночная смена: Hunt Generators",
-  "description": "Horror survival mod with generators, lockers, investigation notes, a secret laboratory storyline and access keycards.",
-  "authors": [
-    "Cgft1"
-  ],
+  "description": "Horror survival mod with generators, lockers, portals, investigation notes and a secret laboratory storyline.",
+  "authors": ["Cgft1"],
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
     "main": [
       "ru.cgf.hunt.HuntMod",
-      "ru.cgf.hunt.NightShiftStory"
+      "ru.cgf.hunt.NightShiftStory",
+      "ru.cgf.hunt.PortalGunFeature"
     ],
-    "client": [
-      "ru.cgf.hunt.HuntClient"
-    ]
+    "client": ["ru.cgf.hunt.HuntClient"]
   },
   "depends": {
     "fabricloader": ">=0.15.0",
