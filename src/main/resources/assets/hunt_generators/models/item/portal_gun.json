@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": { "layer0": "minecraft:item/carrot_on_a_stick" }
+}
