@@ -1,0 +1,98 @@
+package ru.cgf.hunt;
+
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+public final class PortalGunFeature implements ModInitializer {
+    public static final Item PORTAL_GUN = Registry.register(Registries.ITEM,
+            Identifier.of("hunt_generators", "portal_gun"),
+            new Item(new Item.Settings().maxCount(1)));
+    public static final Block BLUE_PORTAL = Registry.register(Registries.BLOCK,
+            Identifier.of("hunt_generators", "blue_portal"),
+            new Block(Block.Settings.copy(Blocks.BLUE_STAINED_GLASS).noCollision().nonOpaque().strength(-1.0f)));
+    public static final Block YELLOW_PORTAL = Registry.register(Registries.BLOCK,
+            Identifier.of("hunt_generators", "yellow_portal"),
+            new Block(Block.Settings.copy(Blocks.YELLOW_STAINED_GLASS).noCollision().nonOpaque().strength(-1.0f)));
+
+    private static final Map<String, BlockPos> PORTALS = new HashMap<>();
+    private static final Map<UUID, Long> COOLDOWN = new HashMap<>();
+
+    @Override
+    public void onInitialize() {
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (!stack.isOf(PORTAL_GUN)) return ActionResult.PASS;
+            if (world.isClient) return ActionResult.SUCCESS;
+            BlockPos target = hit.getBlockPos().offset(hit.getSide());
+            if (!world.getBlockState(target).isAir()) {
+                player.sendMessage(Text.literal("Для портала нужно свободное место."), true);
+                return ActionResult.FAIL;
+            }
+            String key = player.getUuidAsString() + ":" + world.getRegistryKey().getValue();
+            BlockPos oldBlue = PORTALS.get(key + ":blue");
+            BlockPos oldYellow = PORTALS.get(key + ":yellow");
+            boolean placeBlue = oldBlue == null || oldYellow != null;
+            if (placeBlue) {
+                if (oldBlue != null) world.setBlockState(oldBlue, Blocks.AIR.getDefaultState());
+                if (oldYellow != null) world.setBlockState(oldYellow, Blocks.AIR.getDefaultState());
+                PORTALS.put(key + ":blue", target.toImmutable());
+                PORTALS.remove(key + ":yellow");
+                world.setBlockState(target, BLUE_PORTAL.getDefaultState());
+                player.sendMessage(Text.literal("Синий портал открыт. Выстрели ещё раз, чтобы открыть жёлтый."), true);
+            } else {
+                PORTALS.put(key + ":yellow", target.toImmutable());
+                world.setBlockState(target, YELLOW_PORTAL.getDefaultState());
+                player.sendMessage(Text.literal("Пара порталов соединена! Проходи через любой."), true);
+            }
+            return ActionResult.SUCCESS;
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long tick = server.getTicks();
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (COOLDOWN.getOrDefault(player.getUuid(), 0L) > tick) continue;
+                String key = player.getUuidAsString() + ":" + player.getWorld().getRegistryKey().getValue();
+                BlockPos blue = PORTALS.get(key + ":blue");
+                BlockPos yellow = PORTALS.get(key + ":yellow");
+                if (blue == null || yellow == null || !(player.getWorld() instanceof ServerWorld world)) continue;
+                BlockPos feet = player.getBlockPos();
+                BlockPos destination = null;
+                if (nearPortal(feet, blue)) destination = yellow;
+                else if (nearPortal(feet, yellow)) destination = blue;
+                if (destination != null) {
+                    Vec3d pos = Vec3d.ofCenter(destination).add(0, 1.0, 0);
+                    player.teleport(world, pos.x, pos.y, pos.z, player.getYaw(), player.getPitch());
+                    COOLDOWN.put(player.getUuid(), tick + 12);
+                }
+            }
+        });
+    }
+
+    private static boolean nearPortal(BlockPos player, BlockPos portal) {
+        return Math.abs(player.getX() - portal.getX()) <= 1
+                && Math.abs(player.getY() - portal.getY()) <= 1
+                && Math.abs(player.getZ() - portal.getZ()) <= 1;
+    }
+}
