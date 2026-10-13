@@ -86,7 +86,13 @@ public final class PortalGunFeature implements ModInitializer {
 
                 // После переноса ждём, пока игрок действительно выйдет из зоны портала.
                 if (PORTAL_LOCK.contains(player.getUuid())) {
-                    if (!atBlue && !atYellow) PORTAL_LOCK.remove(player.getUuid());
+                    // Не снимаем блокировку сразу после появления: игрок ещё может падать
+                    // сквозь портал и иначе будет мгновенно перенесён обратно.
+                    boolean stillNearBlue = nearPortal(feet, blue, 3);
+                    boolean stillNearYellow = nearPortal(feet, yellow, 3);
+                    if (!stillNearBlue && !stillNearYellow) {
+                        PORTAL_LOCK.remove(player.getUuid());
+                    }
                     continue;
                 }
 
@@ -102,8 +108,12 @@ public final class PortalGunFeature implements ModInitializer {
     }
 
     private static boolean nearPortal(BlockPos player, BlockPos portal) {
-        return Math.abs(player.getX() - portal.getX()) <= 1
-                && Math.abs(player.getY() - portal.getY()) <= 1
-                && Math.abs(player.getZ() - portal.getZ()) <= 1;
+        return nearPortal(player, portal, 1);
+    }
+
+    private static boolean nearPortal(BlockPos player, BlockPos portal, int radius) {
+        return Math.abs(player.getX() - portal.getX()) <= radius
+                && Math.abs(player.getY() - portal.getY()) <= radius
+                && Math.abs(player.getZ() - portal.getZ()) <= radius;
     }
 }
