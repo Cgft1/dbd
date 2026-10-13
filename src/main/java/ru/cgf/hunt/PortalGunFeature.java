@@ -86,10 +86,10 @@ public final class PortalGunFeature implements ModInitializer {
 
                 // После переноса ждём, пока игрок действительно выйдет из зоны портала.
                 if (PORTAL_LOCK.contains(player.getUuid())) {
-                    // Не снимаем блокировку сразу после появления: игрок ещё может падать
-                    // сквозь портал и иначе будет мгновенно перенесён обратно.
-                    boolean stillNearBlue = nearPortal(feet, blue, 3);
-                    boolean stillNearYellow = nearPortal(feet, yellow, 3);
+                    // Снимаем блокировку, как только игрок вышел из непосредственной
+                    // зоны обоих порталов; после переноса он появляется в стороне.
+                    boolean stillNearBlue = nearPortal(feet, blue, 1);
+                    boolean stillNearYellow = nearPortal(feet, yellow, 1);
                     if (!stillNearBlue && !stillNearYellow) {
                         PORTAL_LOCK.remove(player.getUuid());
                     }
@@ -98,8 +98,9 @@ public final class PortalGunFeature implements ModInitializer {
 
                 BlockPos destination = atBlue ? yellow : (atYellow ? blue : null);
                 if (destination != null) {
-                    // Появляемся над блоком портала, чтобы не застрять внутри него.
-                    Vec3d pos = Vec3d.ofCenter(destination).add(0, 2.0, 0);
+                    // Появляемся в стороне от портала, чтобы не провалиться через
+                    // блок без коллизии и не попасть в цикл телепортации.
+                    Vec3d pos = Vec3d.ofCenter(destination).add(2.0, 1.0, 0.0);
                     player.teleport(world, pos.x, pos.y, pos.z, player.getYaw(), player.getPitch());
                     PORTAL_LOCK.add(player.getUuid());
                 }
