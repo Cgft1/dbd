@@ -37,7 +37,8 @@ public final class PortalGunFeature implements ModInitializer {
             new Block(Block.Settings.copy(Blocks.YELLOW_STAINED_GLASS).noCollision().nonOpaque().strength(-1.0f)));
 
     private static final Map<String, BlockPos> PORTALS = new HashMap<>();
-    private static final Map<UUID, Long> COOLDOWN = new HashMap<>();
+    // Игрок не телепортируется обратно, пока не отойдёт от портала.
+    private static final java.util.Set<UUID> PORTAL_LOCK = new java.util.HashSet<>();
 
     @Override
     public void onInitialize() {
@@ -70,21 +71,31 @@ public final class PortalGunFeature implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            long tick = server.getTicks();
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                if (COOLDOWN.getOrDefault(player.getUuid(), 0L) > tick) continue;
                 String key = player.getUuidAsString() + ":" + player.getWorld().getRegistryKey().getValue();
                 BlockPos blue = PORTALS.get(key + ":blue");
                 BlockPos yellow = PORTALS.get(key + ":yellow");
-                if (blue == null || yellow == null || !(player.getWorld() instanceof ServerWorld world)) continue;
+                if (blue == null || yellow == null || !(player.getWorld() instanceof ServerWorld world)) {
+                    PORTAL_LOCK.remove(player.getUuid());
+                    continue;
+                }
+
                 BlockPos feet = player.getBlockPos();
-                BlockPos destination = null;
-                if (nearPortal(feet, blue)) destination = yellow;
-                else if (nearPortal(feet, yellow)) destination = blue;
+                boolean atBlue = nearPortal(feet, blue);
+                boolean atYellow = nearPortal(feet, yellow);
+
+                // После переноса ждём, пока игрок действительно выйдет из зоны портала.
+                if (PORTAL_LOCK.contains(player.getUuid())) {
+                    if (!atBlue && !atYellow) PORTAL_LOCK.remove(player.getUuid());
+                    continue;
+                }
+
+                BlockPos destination = atBlue ? yellow : (atYellow ? blue : null);
                 if (destination != null) {
-                    Vec3d pos = Vec3d.ofCenter(destination).add(0, 1.0, 0);
+                    // Появляемся над блоком портала, чтобы не застрять внутри него.
+                    Vec3d pos = Vec3d.ofCenter(destination).add(0, 2.0, 0);
                     player.teleport(world, pos.x, pos.y, pos.z, player.getYaw(), player.getPitch());
-                    COOLDOWN.put(player.getUuid(), tick + 12);
+                    PORTAL_LOCK.add(player.getUuid());
                 }
             }
         });
