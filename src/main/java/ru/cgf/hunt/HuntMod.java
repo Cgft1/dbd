@@ -160,6 +160,8 @@ public class HuntMod implements ModInitializer {
         world.setBlockState(base.add(0, 0, 22), Blocks.SOUL_LANTERN.getDefaultState(), Block.NOTIFY_ALL);
     }
 
+    public static boolean isMatchRunning() { return running; }
+
     public static BlockPos getGeneratedMapSpawn() { return generatedMapSpawn; }
 
     public static boolean assignRandomLobbyRole(ServerPlayerEntity player) {
