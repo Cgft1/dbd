@@ -23,6 +23,8 @@ public class HuntClient implements ClientModInitializer {
     private static boolean repairing;
     private static int repairAnimationTicks;
     private static int runAnimationTicks;
+    private static int repairedGenerators;
+    private static int deadSurvivors;
 
     public static boolean isInMatch() {
         return !role.isEmpty();
@@ -41,11 +43,16 @@ public class HuntClient implements ClientModInitializer {
                 repairing = payload.repairing();
             })
         );
+        ClientPlayNetworking.registerGlobalReceiver(MatchHudPayload.ID, (payload, context) ->
+            context.client().execute(() -> {
+                repairedGenerators = payload.repairedGenerators();
+                deadSurvivors = payload.deadSurvivors();
+            })
+        );
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
-            if (clientPlayerMissing()) return;
-            if (repairing) {
-                drawGeneratorHud(drawContext);
-            }
+            if (clientPlayerMissing() || role.isEmpty()) return;
+            drawMatchHud(drawContext);
+            if (repairing) drawGeneratorHud(drawContext);
         });
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
@@ -105,6 +112,36 @@ public class HuntClient implements ClientModInitializer {
 
     private static boolean clientPlayerMissing() {
         return net.minecraft.client.MinecraftClient.getInstance().player == null;
+    }
+
+    private static void drawMatchHud(DrawContext context) {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        int sw = client.getWindow().getScaledWidth();
+        int sh = client.getWindow().getScaledHeight();
+        context.fill(8, 8, 154, 43, 0xC9101720);
+        context.fill(8, 8, 11, 43, 0xFF42C8D5);
+        context.drawTextWithShadow(client.textRenderer, "Генераторы: " + repairedGenerators + "/5", 18, 15, 0xFFFFFFFF);
+        context.drawTextWithShadow(client.textRenderer, "Погибло: " + deadSurvivors, 18, 29, 0xFFFF7777);
+        if ("killer".equals(role)) {
+            int x = sw - 146;
+            int y = sh - 82;
+            context.fill(x - 6, y - 6, sw - 8, sh - 8, 0xD9101720);
+            context.drawTextWithShadow(client.textRenderer, "СПОСОБНОСТИ", x, y, 0xFFFF7777);
+            context.drawTextWithShadow(client.textRenderer, "[Y] Кровавое чутьё", x, y + 15, 0xFFFFFFFF);
+            context.drawTextWithShadow(client.textRenderer, "[U] Ярость", x, y + 28, 0xFFFFFFFF);
+            context.drawTextWithShadow(client.textRenderer, "[I] Третья способность", x, y + 41, 0xFFFFFFFF);
+            context.drawTextWithShadow(client.textRenderer, "[V] Рывок", x, y + 54, 0xFFB8D9FF);
+        } else {
+            int x = sw - 62;
+            int y = sh - 54;
+            context.fill(x - 4, y - 4, sw - 6, sh - 6, 0xB8101720);
+            for (int slot = 0; slot < 2; slot++) {
+                int sx = x + slot * 26;
+                context.fill(sx, y, sx + 22, y + 22, 0xFF252B32);
+                context.fill(sx, y, sx + 22, y + 2, 0xFF42C8D5);
+                context.drawCenteredTextWithShadow(client.textRenderer, String.valueOf(slot + 1), sx + 11, y + 7, 0xFFFFFFFF);
+            }
+        }
     }
 
     private static void drawGeneratorHud(DrawContext context) {
