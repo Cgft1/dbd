@@ -155,8 +155,24 @@ public class HuntMod implements ModInitializer {
             context.player().getServer().execute(() -> {
                 ServerPlayerEntity killer = context.player();
                 UUID killerId = killer.getUuid();
-                if (!running || !"killer".equals(ROLES.get(killerId))) return;
+                if (!running) return;
                 String ability = payload.ability();
+                if ("survivor".equals(ROLES.get(killerId)) && "dash".equals(ability)) {
+                    long now = context.player().getServerWorld().getTime();
+                    long readyAt = DASH_READY_AT.getOrDefault(killerId, 0L);
+                    if (now < readyAt) {
+                        context.player().sendMessage(Text.literal("Рывок перезаряжается: " + ((readyAt - now + 19) / 20) + " сек."), true);
+                        return;
+                    }
+                    DASH_READY_AT.put(killerId, now + 3600L);
+                    var direction = context.player().getRotationVector();
+                    context.player().setVelocity(direction.x * 1.65, Math.max(0.18, direction.y * 0.35), direction.z * 1.65);
+                    context.player().velocityModified = true;
+                    context.player().getServerWorld().playSound(null, context.player().getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.9f, 1.5f);
+                    context.player().sendMessage(Text.literal("Рывок! Перезарядка: 180 секунд."), true);
+                    return;
+                }
+                if (!"killer".equals(ROLES.get(killerId))) return;
                 String selectedAbility = KILLER_SELECTED_ABILITY.getOrDefault(killerId, "y");
                 if (!testKillerMode && !selectedAbility.equals(ability)) {
                     killer.sendMessage(Text.literal("До раунда выбрана другая способность: " + selectedAbility.toUpperCase(Locale.ROOT)), true);
