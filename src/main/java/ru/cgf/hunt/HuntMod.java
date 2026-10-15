@@ -77,7 +77,8 @@ public class HuntMod implements ModInitializer {
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
     private static final Map<BlockPos, Integer> REPAIR_PROGRESS = new HashMap<>();
-    private static final Set<BlockPos> GENERATOR_BROKEN_BY_KILLER = new HashSet<>();
+    private static final Map<BlockPos, Long> GENERATOR_BREAK_READY_AT = new HashMap<>();
+    private static final long GENERATOR_BREAK_COOLDOWN_TICKS = 6000L;
     private static final Map<UUID, BlockPos> REPAIRING = new HashMap<>();
     private static final Map<UUID, Integer> REPAIR_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
@@ -585,16 +586,19 @@ public class HuntMod implements ModInitializer {
                     player.sendMessage(Text.literal("Этот генератор уже починен — его нельзя сломать."), true);
                     return ActionResult.FAIL;
                 }
-                if (GENERATOR_BROKEN_BY_KILLER.contains(pos)) {
-                    player.sendMessage(Text.literal("Ты уже ломал этот генератор в этом раунде. Другие генераторы всё ещё можно ломать."), true);
+                long now = player.getWorld().getTime();
+                long readyAt = GENERATOR_BREAK_READY_AT.getOrDefault(pos, 0L);
+                if (now < readyAt) {
+                    long seconds = (readyAt - now + 19) / 20;
+                    player.sendMessage(Text.literal("Этот генератор восстанавливается после поломки. Повторно сломать его можно через " + (seconds / 60) + " мин. " + (seconds % 60) + " сек."), true);
                     return ActionResult.FAIL;
                 }
                 int damage = 5 + new Random().nextInt(6);
                 int oldProgress = REPAIR_PROGRESS.getOrDefault(pos, 0);
                 int newProgress = Math.max(0, oldProgress - damage);
                 REPAIR_PROGRESS.put(pos, newProgress);
-                GENERATOR_BROKEN_BY_KILLER.add(pos);
-                player.sendMessage(Text.literal("Сломал генератор! Прогресс уменьшен на " + (oldProgress - newProgress) + "%. Повторно этот генератор сломать нельзя (" + newProgress + "% осталось)."), true);
+                GENERATOR_BREAK_READY_AT.put(pos, now + GENERATOR_BREAK_COOLDOWN_TICKS);
+                player.sendMessage(Text.literal("Сломал генератор! Прогресс уменьшен на " + (oldProgress - newProgress) + "%. Повторная поломка этого генератора доступна через 5 минут (" + newProgress + "% осталось)."), true);
                 return ActionResult.SUCCESS;
             }
             if (!"survivor".equals(role)) {
@@ -953,7 +957,7 @@ public class HuntMod implements ModInitializer {
         }
         REPAIRED.clear();
         REPAIR_PROGRESS.clear(); REPAIRING.clear(); REPAIR_TICKS.clear(); SKILL_CHECK_WINDOW.clear(); SKILL_CHECK_COOLDOWN.clear();
-        GENERATOR_BROKEN_BY_KILLER.clear();
+        GENERATOR_BREAK_READY_AT.clear();
         gateOpened = false;
         escapeAnnounced = false;
         running = true;
