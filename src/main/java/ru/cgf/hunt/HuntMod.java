@@ -47,7 +47,7 @@ public class HuntMod implements ModInitializer {
     public static final Item GENERATOR_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "generator"), new BlockItem(GENERATOR_BLOCK, new Item.Settings()));
     public static final Block LOCKER_BLOCK = Registry.register(Registries.BLOCK,
-        Identifier.of("hunt_generators", "locker"), new Block(Block.Settings.copy(Blocks.BARREL).strength(3.0f)));
+        Identifier.of("hunt_generators", "locker"), new LockerBlock(Block.Settings.copy(Blocks.BARREL).strength(3.0f)));
     public static final Item LOCKER_ITEM = Registry.register(Registries.ITEM,
         Identifier.of("hunt_generators", "locker"), new BlockItem(LOCKER_BLOCK, new Item.Settings()));
     public static final Item TOOLBOX_ITEM = Registry.register(Registries.ITEM,
@@ -552,11 +552,12 @@ public class HuntMod implements ModInitializer {
                 player.sendMessage(Text.literal("Ты подобрал капкан."), true);
                 return ActionResult.SUCCESS;
             }
-            if (LOCKERS.contains(pos)) {
+            if (world.getBlockState(pos).isOf(LOCKER_BLOCK) || LOCKERS.contains(pos)) {
+                BlockPos lockerBase = world.getBlockState(pos.down()).isOf(LOCKER_BLOCK) ? pos.down() : pos;
                 if ("killer".equals(ROLES.get(id))) {
                     boolean found = false;
                     for (Map.Entry<UUID, BlockPos> entry : new ArrayList<>(HIDING.entrySet())) {
-                        if (!entry.getValue().equals(pos)) continue;
+                        if (!entry.getValue().equals(pos) && !entry.getValue().equals(lockerBase)) continue;
                         ServerPlayerEntity survivor = serverWorld.getServer().getPlayerManager().getPlayer(entry.getKey());
                         HIDING.remove(entry.getKey());
                         if (survivor != null) {
@@ -576,9 +577,9 @@ public class HuntMod implements ModInitializer {
                 if (HIDING.containsKey(id)) {
                     player.sendMessage(Text.literal("Чтобы выйти из шкафа, нажми SHIFT."), true);
                 } else {
-                    HIDING.put(id, pos);
+                    HIDING.put(id, lockerBase);
                     player.setInvisible(true);
-                    player.teleport(serverWorld, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch());
+                    player.teleport(serverWorld, lockerBase.getX() + 0.5, lockerBase.getY(), lockerBase.getZ() + 0.5, java.util.Set.of(), player.getYaw(), player.getPitch());
                     player.sendMessage(Text.literal("Ты спрятался в шкафу. Нажми SHIFT, чтобы выйти."), true);
                 }
                 return ActionResult.SUCCESS;
