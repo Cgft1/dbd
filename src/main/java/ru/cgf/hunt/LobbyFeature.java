@@ -25,7 +25,7 @@ public final class LobbyFeature implements ModInitializer {
     private static BlockPos rolePad;
     private static BlockPos mapCenter;
 
-    private LobbyFeature() {}
+    public LobbyFeature() {}
 
     @Override
     public void onInitialize() {
