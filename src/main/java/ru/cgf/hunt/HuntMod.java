@@ -106,6 +106,80 @@ public class HuntMod implements ModInitializer {
     private static boolean gateOpened = false;
     private static boolean escapeAnnounced = false;
     private static boolean testKillerMode = false;
+    private static BlockPos generatedMapSpawn = null;
+
+    public static void prepareGeneratedMap(ServerWorld world, BlockPos base) {
+        GENERATORS.clear();
+        REPAIRED.clear();
+        REPAIR_PROGRESS.clear();
+        LOCKERS.clear();
+        gateOpened = false;
+        escapeAnnounced = false;
+        gatePos = base.add(0, 0, -24).toImmutable();
+        generatedMapSpawn = base.add(0, 1, 20).toImmutable();
+
+        // Clear and pave a compact abandoned hospital map.
+        for (int x = -28; x <= 28; x++) {
+            for (int z = -28; z <= 28; z++) {
+                for (int y = -1; y <= 8; y++) world.setBlockState(base.add(x, y, z), Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                world.setBlockState(base.add(x, -1, z), Blocks.COARSE_DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                if (Math.abs(x) == 27 || Math.abs(z) == 27) world.setBlockState(base.add(x, 0, z), Blocks.MOSSY_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+                else if ((x * 3 + z) % 11 == 0) world.setBlockState(base.add(x, 0, z), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
+                else world.setBlockState(base.add(x, 0, z), Blocks.DEEPSLATE_TILES.getDefaultState(), Block.NOTIFY_ALL);
+            }
+        }
+        // Ruined hospital shell and corridors.
+        for (int x = -9; x <= 9; x++) for (int y = 1; y <= 5; y++) {
+            world.setBlockState(base.add(x, y, -8), (x % 4 == 0 && y >= 2) ? Blocks.AIR.getDefaultState() : Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, y, 8), Blocks.MOSSY_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+        }
+        for (int z = -8; z <= 8; z++) for (int y = 1; y <= 5; y++) {
+            world.setBlockState(base.add(-9, y, z), Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(9, y, z), Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+        }
+        for (int x = -8; x <= 8; x += 4) for (int z = -7; z <= 7; z += 5) {
+            world.setBlockState(base.add(x, 1, z), Blocks.IRON_TRAPDOOR.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, 2, z), Blocks.REDSTONE_LAMP.getDefaultState(), Block.NOTIFY_ALL);
+        }
+        int[][] genOffsets = {{-20,-15},{-12,12},{0,-20},{15,13},{21,-5}};
+        for (int[] o : genOffsets) {
+            BlockPos p = base.add(o[0], 1, o[1]).toImmutable();
+            world.setBlockState(p, GENERATOR_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+            GENERATORS.add(p);
+            REPAIR_PROGRESS.put(p, 0);
+        }
+        int[][] lockerOffsets = {{-23,0},{-15,-4},{-4,17},{12,-13},{23,8},{4,3}};
+        for (int[] o : lockerOffsets) {
+            BlockPos p = base.add(o[0], 1, o[1]).toImmutable();
+            world.setBlockState(p, LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+            LOCKERS.add(p);
+        }
+        for (int x = -2; x <= 2; x++) for (int y = 1; y <= 4; y++) {
+            world.setBlockState(gatePos.add(x, y, 0), Blocks.IRON_BARS.getDefaultState(), Block.NOTIFY_ALL);
+        }
+        world.setBlockState(base.add(0, 0, 22), Blocks.SOUL_LANTERN.getDefaultState(), Block.NOTIFY_ALL);
+    }
+
+    public static BlockPos getGeneratedMapSpawn() { return generatedMapSpawn; }
+
+    public static boolean assignRandomLobbyRole(ServerPlayerEntity player) {
+        if (running) {
+            player.sendMessage(Text.literal("Раунд уже идёт."), true);
+            return false;
+        }
+        long killers = ROLES.values().stream().filter("killer"::equals).count();
+        long survivors = ROLES.values().stream().filter("survivor"::equals).count();
+        if (killers == 0 && (survivors >= 5 || player.getServer().getPlayerManager().getPlayerList().size() == 1)) {
+            ROLES.put(player.getUuid(), "survivor");
+        } else if (killers == 0 && new Random().nextBoolean()) {
+            ROLES.put(player.getUuid(), "killer");
+        } else {
+            ROLES.put(player.getUuid(), "survivor");
+        }
+        String role = ROLES.get(player.getUuid());
+        player.sendMessage(Text.literal("Случайная роль: " + ("killer".equals(role) ? "УБИЙЦА" : "ВЫЖИВШИЙ")), false);
+        return true;
+    }
 
     @Override
     public void onInitialize() {
