@@ -671,6 +671,10 @@ public class HuntMod implements ModInitializer {
                     if ("survivor".equals(ROLES.get(survivorId))
                             && !TRAPPED_TICKS.containsKey(survivorId)
                             && survivor.getBlockPos().isWithinDistance(trapPos, 1.25)) {
+                        ServerWorld trapEffectWorld = survivor.getServerWorld();
+                        trapEffectWorld.spawnParticles(ParticleTypes.CRIT, survivor.getX(), survivor.getY() + 0.25, survivor.getZ(), 24, 0.45, 0.12, 0.45, 0.12);
+                        trapEffectWorld.spawnParticles(ParticleTypes.CLOUD, trapPos.getX() + 0.5, trapPos.getY() + 0.2, trapPos.getZ() + 0.5, 18, 0.35, 0.15, 0.35, 0.06);
+                        trapEffectWorld.playSound(null, trapPos, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, SoundCategory.BLOCKS, 1.0f, 0.65f);
                         int remainingLives = LIVES.getOrDefault(survivorId, 2) - 1;
                         LIVES.put(survivorId, remainingLives);
                         if (remainingLives <= 0) {
