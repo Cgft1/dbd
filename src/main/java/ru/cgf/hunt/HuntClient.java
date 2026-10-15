@@ -9,6 +9,7 @@ import net.minecraft.client.option.Perspective;
 import net.minecraft.client.option.KeyBinding;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.particle.ParticleTypes;
 import org.lwjgl.glfw.GLFW;
 
 public class HuntClient implements ClientModInitializer {
@@ -20,6 +21,8 @@ public class HuntClient implements ClientModInitializer {
     private static int generatorProgress;
     private static int skillTicks;
     private static boolean repairing;
+    private static int repairAnimationTicks;
+    private static int runAnimationTicks;
 
     public static boolean isInMatch() {
         return !role.isEmpty();
@@ -45,21 +48,55 @@ public class HuntClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
                 role = payload.role();
+                if (role.isEmpty()) {
+                    repairing = false;
+                    repairAnimationTicks = 0;
+                    runAnimationTicks = 0;
+                }
                 applyPerspective(context.client());
             })
         );
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && !role.isEmpty()) {
-                applyPerspective(client);
-                if ("killer".equals(role)) {
-                    if (killerYKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("y"));
-                    if (killerUKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("u"));
-                    if (killerIKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("i"));
-                    if (killerDashKey.wasPressed() && client.getNetworkHandler() != null) client.getNetworkHandler().sendChatCommand("hunt dash");
+            if (client.player == null || role.isEmpty()) return;
+            applyPerspective(client);
+
+            // Repeated hand movements make generator repair look like active work.
+            if (repairing) {
+                repairAnimationTicks++;
+                if (repairAnimationTicks >= 9) {
+                    client.player.swingHand(net.minecraft.util.Hand.MAIN_HAND);
+                    repairAnimationTicks = 0;
                 }
-                if (client.options.sneakKey.wasPressed()) {
-                    ClientPlayNetworking.send(new ExitActionPayload("shift"));
+            } else {
+                repairAnimationTicks = 0;
+            }
+
+            // A light trail at the feet gives sprinting a more dynamic visual feel.
+            if (client.player.isSprinting() && client.world != null && !client.player.isFallFlying()) {
+                runAnimationTicks++;
+                if (runAnimationTicks % 3 == 0) {
+                    double side = (client.world.random.nextDouble() - 0.5) * 0.45;
+                    client.world.addParticle(ParticleTypes.CLOUD,
+                        client.player.getX() + side, client.player.getY() + 0.08,
+                        client.player.getZ() + side, 0.0, 0.015, 0.0);
+                    if (runAnimationTicks % 9 == 0) {
+                        client.world.addParticle(ParticleTypes.CRIT,
+                            client.player.getX(), client.player.getY() + 0.2,
+                            client.player.getZ(), 0.0, 0.025, 0.0);
+                    }
                 }
+            } else {
+                runAnimationTicks = 0;
+            }
+
+            if ("killer".equals(role)) {
+                if (killerYKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("y"));
+                if (killerUKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("u"));
+                if (killerIKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("i"));
+                if (killerDashKey.wasPressed() && client.getNetworkHandler() != null) client.getNetworkHandler().sendChatCommand("hunt dash");
+            }
+            if (client.options.sneakKey.wasPressed()) {
+                ClientPlayNetworking.send(new ExitActionPayload("shift"));
             }
         });
     }
