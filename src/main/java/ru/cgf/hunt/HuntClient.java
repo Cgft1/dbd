@@ -122,16 +122,7 @@ public class HuntClient implements ClientModInitializer {
         context.fill(8, 8, 11, 43, 0xFF42C8D5);
         context.drawTextWithShadow(client.textRenderer, "Генераторы: " + repairedGenerators + "/5", 18, 15, 0xFFFFFFFF);
         context.drawTextWithShadow(client.textRenderer, "Погибло: " + deadSurvivors, 18, 29, 0xFFFF7777);
-        if ("killer".equals(role)) {
-            int x = sw - 146;
-            int y = sh - 82;
-            context.fill(x - 6, y - 6, sw - 8, sh - 8, 0xD9101720);
-            context.drawTextWithShadow(client.textRenderer, "СПОСОБНОСТИ", x, y, 0xFFFF7777);
-            context.drawTextWithShadow(client.textRenderer, "[Y] Кровавое чутьё", x, y + 15, 0xFFFFFFFF);
-            context.drawTextWithShadow(client.textRenderer, "[U] Ярость", x, y + 28, 0xFFFFFFFF);
-            context.drawTextWithShadow(client.textRenderer, "[I] Третья способность", x, y + 41, 0xFFFFFFFF);
-            context.drawTextWithShadow(client.textRenderer, "[V] Рывок", x, y + 54, 0xFFB8D9FF);
-        }
+        // Killer abilities are no longer displayed in the bottom-right corner.
     }
 
     private static void drawGeneratorHud(DrawContext context) {
