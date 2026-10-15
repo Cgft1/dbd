@@ -520,6 +520,9 @@ public class HuntMod implements ModInitializer {
             }
             if (!"killer".equals(attackerRole) || !"survivor".equals(targetRole)
                     || ELIMINATED.contains(other.getUuid())) return ActionResult.PASS;
+            // After hitting a survivor, the killer suffers a 3-second recovery penalty.
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 0, false, true, true));
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.DARKNESS, 60, 0, false, true, true));
             int remaining = LIVES.getOrDefault(other.getUuid(), 2) - 1;
             LIVES.put(other.getUuid(), remaining);
             if (remaining <= 0) {
