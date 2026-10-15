@@ -1,6 +1,7 @@
 package ru.cgf.hunt;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.Block;
@@ -16,7 +17,7 @@ import java.util.Set;
 import static net.minecraft.server.command.CommandManager.literal;
 
 /** Small generated lobby with clickable pads and a generated horror map. */
-public final class LobbyFeature {
+public final class LobbyFeature implements ModInitializer {
     private static BlockPos lobbyCenter;
     private static BlockPos dayPad;
     private static BlockPos nightPad;
@@ -26,7 +27,8 @@ public final class LobbyFeature {
 
     private LobbyFeature() {}
 
-    public static void initialize() {
+    @Override
+    public void onInitialize() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
             dispatcher.register(literal("hunt")
                 .then(literal("lobby")
