@@ -100,6 +100,7 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, Integer> TRAP_ESCAPE_CLICKS = new HashMap<>();
     private static final Map<UUID, Double> ORIGINAL_JUMP_STRENGTH = new HashMap<>();
     private static final Set<UUID> ELIMINATED = new HashSet<>();
+    private static int matchHudSyncTicks = 0;
     private static final long DASH_COOLDOWN_TICKS = 12000L;
     private static BlockPos gatePos = null;
     private static boolean running = false;
@@ -147,6 +148,7 @@ public class HuntMod implements ModInitializer {
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(RolePayload.ID, RolePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(GeneratorHudPayload.ID, GeneratorHudPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MatchHudPayload.ID, MatchHudPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ExitActionPayload.ID, ExitActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(KillerAbilityPayload.ID, KillerAbilityPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(KillerAbilityPayload.ID, (payload, context) ->
@@ -682,6 +684,14 @@ public class HuntMod implements ModInitializer {
                     }
                 }
                 return;
+            }
+            matchHudSyncTicks++;
+            if (matchHudSyncTicks >= 10) {
+                matchHudSyncTicks = 0;
+                MatchHudPayload hud = new MatchHudPayload(REPAIRED.size(), ELIMINATED.size());
+                for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+                    if (ROLES.containsKey(online.getUuid())) ServerPlayNetworking.send(online, hud);
+                }
             }
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 String role = ROLES.get(player.getUuid());
