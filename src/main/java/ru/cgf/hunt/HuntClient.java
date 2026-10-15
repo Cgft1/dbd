@@ -21,6 +21,10 @@ public class HuntClient implements ClientModInitializer {
     private static int skillTicks;
     private static boolean repairing;
 
+    public static boolean isInMatch() {
+        return !role.isEmpty();
+    }
+
     @Override
     public void onInitializeClient() {
         killerYKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_y", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.hunt_generators.killer"));
@@ -40,9 +44,7 @@ public class HuntClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
-                String newRole = payload.role();
-                boolean roleChanged = !newRole.equals(role);
-                role = newRole;
+                role = payload.role();
                 applyPerspective(context.client());
             })
         );
