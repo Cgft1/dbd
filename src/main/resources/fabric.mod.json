@@ -2,7 +2,6 @@
   "schemaVersion": 1,
   "id": "hunt_generators",
   "version": "${version}",
-  "mixins": ["hunt_generators.mixins.json"],
   "name": "Ночная смена: Hunt Generators",
   "description": "Horror survival mod with generators, lockers, portals, investigation notes and a secret laboratory storyline.",
   "authors": ["Cgft1"],
