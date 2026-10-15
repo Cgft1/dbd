@@ -34,6 +34,7 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.particle.ParticleTypes;
 
 import java.util.*;
 
@@ -76,6 +77,8 @@ public class HuntMod implements ModInitializer {
     private static final Set<BlockPos> GENERATORS = new LinkedHashSet<>();
     private static final Set<BlockPos> REPAIRED = new HashSet<>();
     private static final Map<BlockPos, Integer> REPAIR_PROGRESS = new HashMap<>();
+    private static final Map<BlockPos, Long> GENERATOR_BREAK_READY_AT = new HashMap<>();
+    private static final long GENERATOR_BREAK_COOLDOWN_TICKS = 6000L;
     private static final Map<UUID, BlockPos> REPAIRING = new HashMap<>();
     private static final Map<UUID, Integer> REPAIR_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> SKILL_CHECK_WINDOW = new HashMap<>();
@@ -152,14 +155,18 @@ public class HuntMod implements ModInitializer {
                         killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.PLAYERS, 0.8f, 1.0f);
                     }
                     case "i" -> {
-                        for (ServerPlayerEntity target : killer.getServerWorld().getPlayers()) {
+                        ServerWorld world = killer.getServerWorld();
+                        world.spawnParticles(ParticleTypes.EXPLOSION, killer.getX(), killer.getY() + 1.0, killer.getZ(), 1, 0, 0, 0, 0);
+                        world.spawnParticles(ParticleTypes.CLOUD, killer.getX(), killer.getY() + 0.5, killer.getZ(), 70, 3.0, 0.8, 3.0, 0.12);
+                        world.spawnParticles(ParticleTypes.CRIT, killer.getX(), killer.getY() + 1.0, killer.getZ(), 45, 3.0, 0.7, 3.0, 0.2);
+                        for (ServerPlayerEntity target : world.getPlayers()) {
                             if ("survivor".equals(ROLES.get(target.getUuid())) && target.squaredDistanceTo(killer) <= 64.0) {
                                 target.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 1, false, true, true));
                                 target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 40, 0, false, true, true));
                                 target.sendMessage(Text.literal("Ударная волна маньяка!"), true);
                             }
                         }
-                        killer.sendMessage(Text.literal("Ударная волна! Выжившие в радиусе 8 блоков замедлены и ослеплены. Перезарядка: 40 сек."), true);
+                        killer.sendMessage(Text.literal("Ударная волна! Видимый импульс, выжившие в радиусе 8 блоков замедлены и ослеплены. Перезарядка: 40 сек."), true);
                         killer.getServerWorld().playSound(null, killer.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 0.6f, 1.4f);
                     }
                 }
@@ -313,7 +320,7 @@ public class HuntMod implements ModInitializer {
                         if (role.equals("killer")) REPAIR_PROGRESS.put(pos, 50);
                     }
                     gatePos = base.add(-3, 0, 0).toImmutable();
-                    world.setBlockState(gatePos, Blocks.IRON_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                    placeGateBars(world, gatePos);
                     BlockPos locker = base.add(0, 0, -2).toImmutable();
                     world.setBlockState(locker, LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
                     LOCKERS.add(locker);
@@ -383,6 +390,7 @@ public class HuntMod implements ModInitializer {
                 })))
                 .then(literal("gate").then(literal("add").executes(ctx -> {
                     gatePos = BlockPos.ofFloored(ctx.getSource().getPosition()).toImmutable();
+                    placeGateBars(ctx.getSource().getWorld(), gatePos);
                     gateOpened = false;
                     escapeAnnounced = false;
                     ctx.getSource().sendFeedback(() -> Text.literal("Ворота настроены на " + gatePos.toShortString() + ". Встань на блок ворот и выполни команду."), false);
@@ -578,11 +586,19 @@ public class HuntMod implements ModInitializer {
                     player.sendMessage(Text.literal("Этот генератор уже починен — его нельзя сломать."), true);
                     return ActionResult.FAIL;
                 }
+                long readyAt = GENERATOR_BREAK_READY_AT.getOrDefault(pos, 0L);
+                long now = player.getServerWorld().getTime();
+                if (now < readyAt) {
+                    long seconds = (readyAt - now + 19) / 20;
+                    player.sendMessage(Text.literal("Генератор временно защищён. До следующей поломки: " + (seconds / 60) + " мин. " + (seconds % 60) + " сек."), true);
+                    return ActionResult.FAIL;
+                }
                 int damage = 5 + new Random().nextInt(6);
                 int oldProgress = REPAIR_PROGRESS.getOrDefault(pos, 0);
                 int newProgress = Math.max(0, oldProgress - damage);
                 REPAIR_PROGRESS.put(pos, newProgress);
-                player.sendMessage(Text.literal("Сломал генератор! Прогресс уменьшен на " + (oldProgress - newProgress) + "% (" + newProgress + "% осталось)."), true);
+                GENERATOR_BREAK_READY_AT.put(pos, now + GENERATOR_BREAK_COOLDOWN_TICKS);
+                player.sendMessage(Text.literal("Сломал генератор! Прогресс уменьшен на " + (oldProgress - newProgress) + "%. Он защищён от поломки на 5 минут (" + newProgress + "% осталось)."), true);
                 return ActionResult.SUCCESS;
             }
             if (!"survivor".equals(role)) {
@@ -868,7 +884,7 @@ public class HuntMod implements ModInitializer {
                         server.getPlayerManager().broadcast(Text.literal("Генератор починен! Прогресс матча: " + REPAIRED.size() + "/5"), false);
                         if (REPAIRED.size() == 5) {
                             gateOpened = true;
-                            if (gatePos != null) server.getOverworld().setBlockState(gatePos, Blocks.AIR.getDefaultState());
+                            if (gatePos != null) removeGateBars(server.getOverworld(), gatePos);
                             server.getPlayerManager().broadcast(Text.literal("Все генераторы починены! Ворота открыты — выжившие, бегите!"), false);
                         }
                     }
@@ -888,6 +904,22 @@ public class HuntMod implements ModInitializer {
                 }
             }
         });
+    }
+
+    private static void placeGateBars(ServerWorld world, BlockPos base) {
+        for (int dx = 0; dx < 4; dx++) {
+            for (int dy = 0; dy < 4; dy++) {
+                world.setBlockState(base.add(dx, dy, 0), Blocks.IRON_BARS.getDefaultState(), Block.NOTIFY_ALL);
+            }
+        }
+    }
+
+    private static void removeGateBars(ServerWorld world, BlockPos base) {
+        for (int dx = 0; dx < 4; dx++) {
+            for (int dy = 0; dy < 4; dy++) {
+                world.setBlockState(base.add(dx, dy, 0), Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+            }
+        }
     }
 
     private static int start(MinecraftServer server, ServerPlayerEntity commandPlayer) {
