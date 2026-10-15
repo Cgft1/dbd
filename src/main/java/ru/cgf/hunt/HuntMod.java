@@ -115,40 +115,77 @@ public class HuntMod implements ModInitializer {
         LOCKERS.clear();
         gateOpened = false;
         escapeAnnounced = false;
-        gatePos = base.add(0, 0, -24).toImmutable();
+        gatePos = base.add(0, 0, 26).toImmutable();
         generatedMapSpawn = base.add(0, 1, 20).toImmutable();
 
-        // Clear and pave a compact abandoned hospital map.
+        // Lakeside campsite: grassy clearing, lake, woods, tents and a campfire.
         for (int x = -28; x <= 28; x++) {
             for (int z = -28; z <= 28; z++) {
                 for (int y = -1; y <= 8; y++) world.setBlockState(base.add(x, y, z), Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                world.setBlockState(base.add(x, -1, z), Blocks.COARSE_DIRT.getDefaultState(), Block.NOTIFY_ALL);
-                if (Math.abs(x) == 27 || Math.abs(z) == 27) world.setBlockState(base.add(x, 0, z), Blocks.MOSSY_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
-                else if ((x * 3 + z) % 11 == 0) world.setBlockState(base.add(x, 0, z), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
-                else world.setBlockState(base.add(x, 0, z), Blocks.DEEPSLATE_TILES.getDefaultState(), Block.NOTIFY_ALL);
+                world.setBlockState(base.add(x, -1, z), Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                world.setBlockState(base.add(x, 0, z), (Math.abs(x) == 27 || Math.abs(z) == 27)
+                    ? Blocks.MOSS_BLOCK.getDefaultState() : ((x * 7 + z * 3) % 13 == 0
+                    ? Blocks.COARSE_DIRT.getDefaultState() : Blocks.GRASS_BLOCK.getDefaultState()), Block.NOTIFY_ALL);
             }
         }
-        // Ruined hospital shell and corridors.
-        for (int x = -9; x <= 9; x++) for (int y = 1; y <= 5; y++) {
-            world.setBlockState(base.add(x, y, -8), (x % 4 == 0 && y >= 2) ? Blocks.AIR.getDefaultState() : Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
-            world.setBlockState(base.add(x, y, 8), Blocks.MOSSY_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+
+        // A broad lake occupies the north side of the campsite, with a sandy shore.
+        for (int x = -12; x <= 12; x++) {
+            for (int z = -25; z <= -8; z++) {
+                double dx = x / 12.0;
+                double dz = (z + 16.5) / 9.0;
+                if (dx * dx + dz * dz <= 1.0) {
+                    world.setBlockState(base.add(x, 0, z), Blocks.WATER.getDefaultState(), Block.NOTIFY_ALL);
+                    world.setBlockState(base.add(x, -1, z), Blocks.GRAVEL.getDefaultState(), Block.NOTIFY_ALL);
+                } else if (dx * dx + dz * dz <= 1.22) {
+                    world.setBlockState(base.add(x, 0, z), Blocks.SAND.getDefaultState(), Block.NOTIFY_ALL);
+                }
+            }
         }
-        for (int z = -8; z <= 8; z++) for (int y = 1; y <= 5; y++) {
-            world.setBlockState(base.add(-9, y, z), Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
-            world.setBlockState(base.add(9, y, z), Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+
+        // Wooden docks, lanterns and a small pier reaching into the lake.
+        for (int z = -12; z <= -7; z++) {
+            world.setBlockState(base.add(0, 0, z), Blocks.OAK_PLANKS.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(1, 0, z), Blocks.OAK_PLANKS.getDefaultState(), Block.NOTIFY_ALL);
         }
-        for (int x = -8; x <= 8; x += 4) for (int z = -7; z <= 7; z += 5) {
-            world.setBlockState(base.add(x, 1, z), Blocks.IRON_TRAPDOOR.getDefaultState(), Block.NOTIFY_ALL);
-            world.setBlockState(base.add(x, 2, z), Blocks.REDSTONE_LAMP.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(-1, 1, -11), Blocks.LANTERN.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(2, 1, -11), Blocks.LANTERN.getDefaultState(), Block.NOTIFY_ALL);
+
+        // Two simple campsite tents and a central fire pit.
+        for (int x = -8; x <= -4; x++) {
+            world.setBlockState(base.add(x, 1, 3), Blocks.SPRUCE_PLANKS.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, 2, 3), Blocks.WHITE_WOOL.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, 2, 4), Blocks.WHITE_WOOL.getDefaultState(), Block.NOTIFY_ALL);
         }
-        int[][] genOffsets = {{-20,-15},{-12,12},{0,-20},{15,13},{21,-5}};
+        for (int x = 5; x <= 9; x++) {
+            world.setBlockState(base.add(x, 1, 5), Blocks.SPRUCE_PLANKS.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, 2, 5), Blocks.RED_WOOL.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(base.add(x, 2, 6), Blocks.RED_WOOL.getDefaultState(), Block.NOTIFY_ALL);
+        }
+        world.setBlockState(base.add(0, 1, 8), Blocks.CAMPFIRE.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(-2, 0, 8), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(-1, 0, 8), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(1, 0, 8), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(2, 0, 8), Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_ALL);
+
+        // Sparse trees around the perimeter.
+        int[][] trees = {{-24,-22},{-21,-8},{-25,3},{-22,19},{-16,24},{-5,23},{8,24},{19,21},{24,12},{23,-3},{18,-22},{-18,-24},{13,-25},{-26,11}};
+        for (int[] t : trees) {
+            int tx = t[0], tz = t[1];
+            for (int y = 1; y <= 4; y++) world.setBlockState(base.add(tx, y, tz), Blocks.SPRUCE_LOG.getDefaultState(), Block.NOTIFY_ALL);
+            for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                if (Math.abs(dx) + Math.abs(dz) < 4) world.setBlockState(base.add(tx + dx, 4, tz + dz), Blocks.SPRUCE_LEAVES.getDefaultState(), Block.NOTIFY_ALL);
+            }
+        }
+
+        int[][] genOffsets = {{-20,-10},{-14,10},{-2,1},{15,12},{21,-5}};
         for (int[] o : genOffsets) {
             BlockPos p = base.add(o[0], 1, o[1]).toImmutable();
             world.setBlockState(p, GENERATOR_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
             GENERATORS.add(p);
             REPAIR_PROGRESS.put(p, 0);
         }
-        int[][] lockerOffsets = {{-23,0},{-15,-4},{-4,17},{12,-13},{23,8},{4,3}};
+        int[][] lockerOffsets = {{-23,0},{-16,-3},{-4,17},{12,-13},{23,8},{4,3}};
         for (int[] o : lockerOffsets) {
             BlockPos p = base.add(o[0], 1, o[1]).toImmutable();
             world.setBlockState(p, LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
@@ -157,7 +194,7 @@ public class HuntMod implements ModInitializer {
         for (int x = -2; x <= 2; x++) for (int y = 1; y <= 4; y++) {
             world.setBlockState(gatePos.add(x, y, 0), Blocks.IRON_BARS.getDefaultState(), Block.NOTIFY_ALL);
         }
-        world.setBlockState(base.add(0, 0, 22), Blocks.SOUL_LANTERN.getDefaultState(), Block.NOTIFY_ALL);
+        world.setBlockState(base.add(0, 1, 8), Blocks.CAMPFIRE.getDefaultState(), Block.NOTIFY_ALL);
     }
 
     public static boolean isMatchRunning() { return running; }
