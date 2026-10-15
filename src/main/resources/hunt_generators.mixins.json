@@ -2,7 +2,7 @@
   "required": true,
   "package": "ru.cgf.hunt.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["InGameHudMixin"],
+  "client": ["InGameHudMixin", "MatchFogMixin"],
   "injectors": {
     "defaultRequire": 1
   }
