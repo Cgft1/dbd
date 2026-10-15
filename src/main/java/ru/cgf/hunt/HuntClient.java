@@ -18,6 +18,7 @@ public class HuntClient implements ClientModInitializer {
     private static KeyBinding killerUKey;
     private static KeyBinding killerIKey;
     private static KeyBinding killerDashKey;
+    private static KeyBinding survivorDashKey;
     private static int generatorProgress;
     private static int skillTicks;
     private static boolean repairing;
@@ -36,6 +37,7 @@ public class HuntClient implements ClientModInitializer {
         killerUKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_u", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_U, "category.hunt_generators.killer"));
         killerIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_i", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_I, "category.hunt_generators.killer"));
         killerDashKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_dash", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.hunt_generators.killer"));
+        survivorDashKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.survivor_dash", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_C, "category.hunt_generators.survivor"));
         ClientPlayNetworking.registerGlobalReceiver(GeneratorHudPayload.ID, (payload, context) ->
             context.client().execute(() -> {
                 generatorProgress = payload.progress();
@@ -98,6 +100,7 @@ public class HuntClient implements ClientModInitializer {
                 runAnimationTicks = 0;
             }
 
+            if ("survivor".equals(role) && survivorDashKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("dash"));
             if ("killer".equals(role)) {
                 if (killerYKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("y"));
                 if (killerUKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("u"));
