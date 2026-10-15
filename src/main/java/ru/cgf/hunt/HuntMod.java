@@ -260,7 +260,7 @@ public class HuntMod implements ModInitializer {
                         player.sendMessage(Text.literal("Рывок доступен только убийце во время раунда."), true);
                         return 0;
                     }
-                    long now = player.getServerWorld().getTime();
+                    long now = player.getWorld().getTime();
                     long ready = DASH_READY_AT.getOrDefault(id, 0L);
                     if (now < ready) {
                         long seconds = (ready - now + 19) / 20;
