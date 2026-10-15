@@ -14,5 +14,7 @@
   "key.hunt_generators.killer_ability_u": "Способность маньяка: Ярость",
   "key.hunt_generators.killer_ability_i": "Способность маньяка: Ударная волна",
   "key.hunt_generators.killer_dash": "Рывок маньяка",
-  "category.hunt_generators.killer": "Hunt: Generators — способности маньяка"
+  "category.hunt_generators.killer": "Hunt: Generators — способности маньяка",
+  "key.hunt_generators.survivor_dash": "Рывок выжившего",
+  "category.hunt_generators.survivor": "Выживший"
 }
