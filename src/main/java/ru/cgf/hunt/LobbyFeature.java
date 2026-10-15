@@ -45,7 +45,7 @@ public final class LobbyFeature implements ModInitializer {
                         HuntMod.prepareGeneratedMap(world, mapCenter);
                         player.teleport(world, lobbyCenter.getX() + 0.5, lobbyCenter.getY() + 2,
                             lobbyCenter.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
-                        player.sendMessage(Text.literal("Лобби и заброшенная больница созданы! Настрой день/ночь, затем нажми «На карту» и «Случайная роль»."), false);
+                        player.sendMessage(Text.literal("Лобби и карта «Лагерь у озера» созданы! Настрой день/ночь, затем нажми «На карту» и «Случайная роль»."), false);
                         return 1;
                     })))
             )
@@ -75,7 +75,7 @@ public final class LobbyFeature implements ModInitializer {
                     if (spawn != null) {
                         serverPlayer.teleport(serverPlayer.getServerWorld(), spawn.getX() + 0.5, spawn.getY(),
                             spawn.getZ() + 0.5, Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch());
-                        serverPlayer.sendMessage(Text.literal("Ты на карте «Заброшенная больница». Дождись остальных и запусти /hunt start."), false);
+                        serverPlayer.sendMessage(Text.literal("Ты на карте «Лагерь у озера». Дождись остальных и запусти /hunt start."), false);
                     }
                 }
                 return ActionResult.SUCCESS;
