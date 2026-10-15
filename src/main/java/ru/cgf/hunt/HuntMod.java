@@ -188,8 +188,11 @@ public class HuntMod implements ModInitializer {
         int[][] lockerOffsets = {{-23,0},{-16,-3},{-4,17},{12,-13},{23,8},{4,3}};
         for (int[] o : lockerOffsets) {
             BlockPos p = base.add(o[0], 1, o[1]).toImmutable();
+            // Two-block-tall locker: lower and upper halves both support interaction.
             world.setBlockState(p, LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+            world.setBlockState(p.up(), LOCKER_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
             LOCKERS.add(p);
+            LOCKERS.add(p.up());
         }
         for (int x = -2; x <= 2; x++) for (int y = 1; y <= 4; y++) {
             world.setBlockState(gatePos.add(x, y, 0), Blocks.IRON_BARS.getDefaultState(), Block.NOTIFY_ALL);
