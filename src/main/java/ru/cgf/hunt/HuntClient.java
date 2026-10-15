@@ -16,6 +16,7 @@ public class HuntClient implements ClientModInitializer {
     private static KeyBinding killerYKey;
     private static KeyBinding killerUKey;
     private static KeyBinding killerIKey;
+    private static KeyBinding killerDashKey;
     private static int generatorProgress;
     private static int skillTicks;
     private static boolean repairing;
@@ -25,6 +26,7 @@ public class HuntClient implements ClientModInitializer {
         killerYKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_y", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.hunt_generators.killer"));
         killerUKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_u", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_U, "category.hunt_generators.killer"));
         killerIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_ability_i", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_I, "category.hunt_generators.killer"));
+        killerDashKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hunt_generators.killer_dash", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.hunt_generators.killer"));
         ClientPlayNetworking.registerGlobalReceiver(GeneratorHudPayload.ID, (payload, context) ->
             context.client().execute(() -> {
                 generatorProgress = payload.progress();
@@ -51,6 +53,7 @@ public class HuntClient implements ClientModInitializer {
                     if (killerYKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("y"));
                     if (killerUKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("u"));
                     if (killerIKey.wasPressed()) ClientPlayNetworking.send(new KillerAbilityPayload("i"));
+                    if (killerDashKey.wasPressed() && client.getNetworkHandler() != null) client.getNetworkHandler().sendChatCommand("hunt dash");
                 }
                 if (client.options.sneakKey.wasPressed()) {
                     ClientPlayNetworking.send(new ExitActionPayload("shift"));
