@@ -690,13 +690,8 @@ public class HuntMod implements ModInitializer {
                         for (ServerPlayerEntity killer : server.getPlayerManager().getPlayerList()) {
                             if ("killer".equals(ROLES.get(killer.getUuid()))) killer.sendMessage(Text.literal("Выживший попался в твой капкан и потерял жизнь!"), true);
                         }
-                        for (ServerWorld candidateWorld : server.getWorlds()) {
-                            if (candidateWorld.getBlockState(trapPos).isOf(TRAP_BLOCK)) {
-                                candidateWorld.setBlockState(trapPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                                break;
-                            }
-                        }
-                        TRAP_POSITIONS.remove(trapPos);
+                        // Keep the trap in the world while the survivor is caught.
+                        // It breaks only when the survivor finishes escaping.
                         break;
                     }
                 }
@@ -746,9 +741,20 @@ public class HuntMod implements ModInitializer {
                     p.velocityModified = true;
                     if (trapped <= 1) {
                         TRAPPED_TICKS.remove(id);
-                        TRAPPED_AT.remove(id);
+                        BlockPos escapedTrap = TRAPPED_AT.remove(id);
                         TRAP_ESCAPE_CLICKS.remove(id);
-                        p.sendMessage(Text.literal("Ты освободился из капкана."), true);
+                        if (escapedTrap != null) {
+                            for (ServerWorld candidateWorld : server.getWorlds()) {
+                                if (candidateWorld.getBlockState(escapedTrap).isOf(TRAP_BLOCK)) {
+                                    candidateWorld.setBlockState(escapedTrap, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                    candidateWorld.spawnParticles(ParticleTypes.CRIT, escapedTrap.getX() + 0.5, escapedTrap.getY() + 0.25, escapedTrap.getZ() + 0.5, 16, 0.25, 0.12, 0.25, 0.08);
+                                    candidateWorld.playSound(null, escapedTrap, SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, SoundCategory.BLOCKS, 0.8f, 1.2f);
+                                    break;
+                                }
+                            }
+                            TRAP_POSITIONS.remove(escapedTrap);
+                        }
+                        p.sendMessage(Text.literal("Ты выбрался! Капкан сломался."), true);
                     } else TRAPPED_TICKS.put(id, trapped - 1);
                 }
                 Integer stunned = STUNNED_TICKS.get(id);
