@@ -131,16 +131,6 @@ public class HuntClient implements ClientModInitializer {
             context.drawTextWithShadow(client.textRenderer, "[U] Ярость", x, y + 28, 0xFFFFFFFF);
             context.drawTextWithShadow(client.textRenderer, "[I] Третья способность", x, y + 41, 0xFFFFFFFF);
             context.drawTextWithShadow(client.textRenderer, "[V] Рывок", x, y + 54, 0xFFB8D9FF);
-        } else {
-            int x = sw - 62;
-            int y = sh - 54;
-            context.fill(x - 4, y - 4, sw - 6, sh - 6, 0xB8101720);
-            for (int slot = 0; slot < 2; slot++) {
-                int sx = x + slot * 26;
-                context.fill(sx, y, sx + 22, y + 22, 0xFF252B32);
-                context.fill(sx, y, sx + 22, y + 2, 0xFF42C8D5);
-                context.drawCenteredTextWithShadow(client.textRenderer, String.valueOf(slot + 1), sx + 11, y + 7, 0xFFFFFFFF);
-            }
         }
     }
 
