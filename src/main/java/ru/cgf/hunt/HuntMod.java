@@ -102,6 +102,7 @@ public class HuntMod implements ModInitializer {
     private static boolean running = false;
     private static boolean gateOpened = false;
     private static boolean escapeAnnounced = false;
+    private static boolean testKillerMode = false;
 
     @Override
     public void onInitialize() {
@@ -116,7 +117,7 @@ public class HuntMod implements ModInitializer {
                 if (!running || !"killer".equals(ROLES.get(killerId))) return;
                 String ability = payload.ability();
                 String selectedAbility = KILLER_SELECTED_ABILITY.getOrDefault(killerId, "y");
-                if (!selectedAbility.equals(ability)) {
+                if (!testKillerMode && !selectedAbility.equals(ability)) {
                     killer.sendMessage(Text.literal("До раунда выбрана другая способность: " + selectedAbility.toUpperCase(Locale.ROOT)), true);
                     return;
                 }
@@ -277,6 +278,7 @@ public class HuntMod implements ModInitializer {
 
                     // Одиночный тестовый режим: создаём тренировочную арену вокруг игрока.
                     running = false;
+                    testKillerMode = false;
                     for (ServerPlayerEntity online : source.getServer().getPlayerManager().getPlayerList()) {
                         Double originalJump = ORIGINAL_JUMP_STRENGTH.remove(online.getUuid());
                         if (originalJump != null) {
@@ -308,6 +310,7 @@ public class HuntMod implements ModInitializer {
                         BlockPos pos = base.add(offset[0], 0, offset[1]).toImmutable();
                         world.setBlockState(pos, GENERATOR_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
                         GENERATORS.add(pos);
+                        if (role.equals("killer")) REPAIR_PROGRESS.put(pos, 50);
                     }
                     gatePos = base.add(-3, 0, 0).toImmutable();
                     world.setBlockState(gatePos, Blocks.IRON_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
@@ -321,6 +324,7 @@ public class HuntMod implements ModInitializer {
                     TRAP_POSITIONS.put(trap, 0);
 
                     ROLES.put(player.getUuid(), role);
+                    testKillerMode = role.equals("killer");
                     running = true;
                     if (role.equals("survivor")) LIVES.put(player.getUuid(), 2);
                     var jump = player.getAttributeInstance(EntityAttributes.GENERIC_JUMP_STRENGTH);
@@ -340,7 +344,7 @@ public class HuntMod implements ModInitializer {
                     if (role.equals("killer")) player.getInventory().insertStack(new ItemStack(MACHETE_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(LOCKER_ITEM, 1));
                     player.getInventory().insertStack(new ItemStack(GENERATOR_ITEM, 1));
-                    player.sendMessage(Text.literal("ТЕСТОВЫЙ РЕЖИМ: роль " + (role.equals("killer") ? "УБИЙЦА" : "ВЫЖИВШИЙ") + ". Арена и предметы созданы. Прыжок отключён."), false);
+                    player.sendMessage(Text.literal("ТЕСТОВЫЙ РЕЖИМ: роль " + (role.equals("killer") ? "УБИЙЦА — доступны все способности, генераторы на 50%" : "ВЫЖИВШИЙ") + ". Арена и предметы созданы. Прыжок отключён."), false);
                     player.sendMessage(Text.literal("Проверь генераторы, шкаф, палету, предметы и /hunt status. Для смены роли снова выполни /hunt test killer или survivor."), false);
                     return 1;
                 })))
