@@ -42,8 +42,13 @@ public class HuntClient implements ClientModInitializer {
             })
         );
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
-            if (!repairing || clientPlayerMissing()) return;
-            drawGeneratorHud(drawContext);
+            if (clientPlayerMissing()) return;
+            if (!role.isEmpty()) {
+                drawHorrorOverlay(drawContext);
+            }
+            if (repairing) {
+                drawGeneratorHud(drawContext);
+            }
         });
         ClientPlayNetworking.registerGlobalReceiver(RolePayload.ID, (payload, context) ->
             context.client().execute(() -> {
@@ -103,6 +108,31 @@ public class HuntClient implements ClientModInitializer {
 
     private static boolean clientPlayerMissing() {
         return net.minecraft.client.MinecraftClient.getInstance().player == null;
+    }
+
+    // Horror atmosphere overlay, enabled only while a match role is active.
+    // Layered translucent edges simulate a vignette; the lower haze suggests ground fog.
+    private static void drawHorrorOverlay(DrawContext context) {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        int width = client.getWindow().getScaledWidth();
+        int height = client.getWindow().getScaledHeight();
+        int edge = Math.max(1, width / 12);
+        int band = Math.max(1, width / 40);
+
+        // Overall dimming.
+        context.fill(0, 0, width, height, 0x1804080D);
+
+        // Dark vignette bands around all four edges.
+        context.fill(0, 0, edge, height, 0x26000000);
+        context.fill(width - edge, 0, width, height, 0x26000000);
+        context.fill(0, 0, width, band, 0x24000000);
+        context.fill(0, height - band, width, height, 0x24000000);
+        context.fill(0, 0, band, height, 0x33000000);
+        context.fill(width - band, 0, width, height, 0x33000000);
+
+        // A subtle grey haze along the bottom of the view.
+        context.fill(0, height * 3 / 4, width, height, 0x12AEB8C0);
+        context.fill(0, height * 7 / 8, width, height, 0x0DAEB8C0);
     }
 
     private static void drawGeneratorHud(DrawContext context) {
