@@ -87,6 +87,8 @@ public class HuntMod implements ModInitializer {
     private static final Map<UUID, BlockPos> HIDING = new HashMap<>();
     private static final Map<UUID, Integer> LIVES = new HashMap<>();
     private static final Map<UUID, Long> DASH_READY_AT = new HashMap<>();
+    private static final Map<UUID, Long> NUT_SHIELD_UNTIL = new HashMap<>();
+    private static final Map<UUID, Long> NUT_READY_AT = new HashMap<>();
     private static final Map<UUID, Map<String, Long>> KILLER_ABILITY_READY = new HashMap<>();
     private static final Map<UUID, String> KILLER_SELECTED_ABILITY = new HashMap<>();
     private static final Map<UUID, Long> BLINDED_UNTIL = new HashMap<>();
@@ -157,6 +159,19 @@ public class HuntMod implements ModInitializer {
                 UUID killerId = killer.getUuid();
                 if (!running) return;
                 String ability = payload.ability();
+                if ("survivor".equals(ROLES.get(killerId)) && "nut".equals(ability)) {
+                    long now = context.player().getServerWorld().getTime();
+                    long readyAt = NUT_READY_AT.getOrDefault(killerId, 0L);
+                    if (now < readyAt) {
+                        context.player().sendMessage(Text.literal("Орех перезаряжается: " + ((readyAt - now + 19) / 20) + " сек."), true);
+                        return;
+                    }
+                    NUT_READY_AT.put(killerId, now + 1200L);
+                    NUT_SHIELD_UNTIL.put(killerId, now + 40L);
+                    context.player().getServerWorld().playSound(null, context.player().getBlockPos(), SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 1.0f, 1.2f);
+                    context.player().sendMessage(Text.literal("Орех активирован! Щит от удара на 2 секунды."), true);
+                    return;
+                }
                 if ("survivor".equals(ROLES.get(killerId)) && "dash".equals(ability)) {
                     long now = context.player().getServerWorld().getTime();
                     long readyAt = DASH_READY_AT.getOrDefault(killerId, 0L);
@@ -536,6 +551,13 @@ public class HuntMod implements ModInitializer {
             }
             if (!"killer".equals(attackerRole) || !"survivor".equals(targetRole)
                     || ELIMINATED.contains(other.getUuid())) return ActionResult.PASS;
+            Long shieldUntil = NUT_SHIELD_UNTIL.get(other.getUuid());
+            if (shieldUntil != null && other.getServerWorld().getTime() < shieldUntil) {
+                player.sendMessage(Text.literal("У выжившего активен щит!"), true);
+                other.sendMessage(Text.literal("Щит заблокировал удар!"), true);
+                other.getServerWorld().playSound(null, other.getBlockPos(), SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 1.0f, 0.8f);
+                return ActionResult.SUCCESS;
+            }
             // After hitting a survivor, the killer suffers a 3-second recovery penalty.
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 0, false, true, true));
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.DARKNESS, 60, 0, false, true, true));
