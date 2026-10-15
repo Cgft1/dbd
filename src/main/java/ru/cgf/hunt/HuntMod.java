@@ -587,7 +587,7 @@ public class HuntMod implements ModInitializer {
                     return ActionResult.FAIL;
                 }
                 long readyAt = GENERATOR_BREAK_READY_AT.getOrDefault(pos, 0L);
-                long now = player.getServerWorld().getTime();
+                long now = player.getWorld().getTime();
                 if (now < readyAt) {
                     long seconds = (readyAt - now + 19) / 20;
                     player.sendMessage(Text.literal("Генератор временно защищён. До следующей поломки: " + (seconds / 60) + " мин. " + (seconds % 60) + " сек."), true);
