@@ -166,7 +166,7 @@ public class HuntMod implements ModInitializer {
                         context.player().sendMessage(Text.literal("Орех перезаряжается: " + ((readyAt - now + 19) / 20) + " сек."), true);
                         return;
                     }
-                    NUT_READY_AT.put(killerId, now + 1200L);
+                    NUT_READY_AT.put(killerId, now + 8400L);
                     NUT_SHIELD_UNTIL.put(killerId, now + 40L);
                     context.player().getServerWorld().playSound(null, context.player().getBlockPos(), SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 1.0f, 1.2f);
                     context.player().sendMessage(Text.literal("Орех активирован! Щит от удара на 2 секунды."), true);
