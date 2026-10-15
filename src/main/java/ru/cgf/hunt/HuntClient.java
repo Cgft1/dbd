@@ -62,17 +62,6 @@ public class HuntClient implements ClientModInitializer {
             if (client.player == null || role.isEmpty()) return;
             applyPerspective(client);
 
-            // Soft, low-lying fog particles are emitted only during a match.
-            if (client.world != null && client.world.random.nextInt(5) == 0) {
-                double angle = client.world.random.nextDouble() * Math.PI * 2.0;
-                double radius = 3.0 + client.world.random.nextDouble() * 6.0;
-                double fogX = client.player.getX() + Math.cos(angle) * radius;
-                double fogZ = client.player.getZ() + Math.sin(angle) * radius;
-                double fogY = client.player.getY() + 0.15 + client.world.random.nextDouble() * 0.7;
-                client.world.addParticle(ParticleTypes.CLOUD, fogX, fogY, fogZ,
-                    -Math.cos(angle) * 0.008, 0.002, -Math.sin(angle) * 0.008);
-            }
-
             // Repeated hand movements make generator repair look like active work.
             if (repairing) {
                 repairAnimationTicks++;
