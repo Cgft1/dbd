@@ -22,7 +22,6 @@ dependencies {
 
 processResources {
     inputs.property "version", project.version
-    inputs.file("src/main/resources/assets/hunt_generators/textures/block/detail_atlas.png.b64")
     exclude("**/*.b64")
 
     filesMatching("fabric.mod.json") {
@@ -30,31 +29,203 @@ processResources {
     }
 
     doLast {
-        def encoded = file("src/main/resources/assets/hunt_generators/textures/block/detail_atlas.png.b64")
-            .getText("UTF-8")
-            .replaceAll("\\s", "")
-        byte[] decoded = java.util.Base64.getDecoder().decode(encoded)
-        def sourceImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(decoded))
-        if (sourceImage == null) {
-            throw new GradleException("Could not decode detailed texture atlas source")
+        int size = 256
+        int tile = 32
+        def image = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def g = image.createGraphics()
+        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_OFF)
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
+
+        def C = { int r, int gr, int b, int a = 255 -> new java.awt.Color(r, gr, b, a) }
+        def rust = C(109, 48, 31)
+        def darkRust = C(55, 29, 24)
+        def steel = C(95, 91, 84)
+        def darkSteel = C(36, 36, 38)
+        def black = C(18, 16, 16)
+        def orange = C(225, 92, 24)
+        def red = C(145, 30, 24)
+        def blood = C(99, 12, 16)
+        def wood = C(101, 60, 29)
+        def darkWood = C(55, 34, 20)
+        def paper = C(202, 191, 154)
+        def paperDark = C(116, 104, 78)
+        def purple = C(117, 37, 146)
+
+        def noise = { int tx, int ty, java.awt.Color base, int amount, long seed ->
+            int ox = tx * tile
+            int oy = ty * tile
+            def rnd = new java.util.Random(seed)
+            g.color = base
+            g.fillRect(ox, oy, tile, tile)
+            for (int i = 0; i < 170; i++) {
+                int delta = rnd.nextInt(amount * 2 + 1) - amount
+                int rr = Math.max(0, Math.min(255, base.red + delta))
+                int gg = Math.max(0, Math.min(255, base.green + delta))
+                int bb = Math.max(0, Math.min(255, base.blue + delta))
+                g.color = C(rr, gg, bb, 255)
+                int px = ox + rnd.nextInt(tile)
+                int py = oy + rnd.nextInt(tile)
+                g.fillRect(px, py, 1 + rnd.nextInt(2), 1 + rnd.nextInt(2))
+            }
         }
 
-        def rgbaImage = new java.awt.image.BufferedImage(
-            sourceImage.getWidth(),
-            sourceImage.getHeight(),
-            java.awt.image.BufferedImage.TYPE_INT_ARGB
-        )
-        def graphics = rgbaImage.createGraphics()
-        try {
-            graphics.drawImage(sourceImage, 0, 0, null)
-        } finally {
-            graphics.dispose()
+        def frame = { int tx, int ty, java.awt.Color edge, java.awt.Color inner ->
+            int x = tx * tile
+            int y = ty * tile
+            g.color = edge
+            g.fillRect(x, y, tile, tile)
+            g.color = inner
+            g.fillRect(x + 3, y + 3, tile - 6, tile - 6)
+            g.color = C(15, 13, 13)
+            g.drawRect(x + 2, y + 2, tile - 5, tile - 5)
+            g.color = C(165, 112, 71)
+            [[4,4],[26,4],[4,26],[26,26]].each { p ->
+                g.fillRect(x + p[0], y + p[1], 2, 2)
+            }
         }
+
+        // Generator metal panels: UV 0..12, row 0.
+        noise(0, 0, darkRust, 18, 1001L); frame(0, 0, C(73, 42, 31), C(47, 39, 35))
+        for (int yy = 7; yy < 27; yy += 5) { g.color = C(20, 20, 20); g.fillRect(5, yy, 22, 2) }
+
+        noise(1, 0, C(54, 45, 40), 14, 1002L); frame(1, 0, C(80, 46, 32), C(45, 40, 38))
+        for (int i = 0; i < 6; i++) { g.color = C(20 + i * 3, 20 + i * 2, 20); g.fillRect(36 + i * 4, 8, 2, 18) }
+
+        noise(2, 0, C(48, 39, 34), 14, 1003L); frame(2, 0, C(92, 53, 35), C(33, 30, 29))
+        g.color = C(15, 15, 15); g.fillRect(69, 7, 22, 18)
+        g.color = orange; g.fillRect(72, 9, 7, 4); g.fillRect(82, 9, 6, 4)
+        g.color = C(223, 169, 70); g.fillOval(75, 16, 10, 8)
+        g.color = red; g.fillRect(72, 27, 16, 2)
+
+        noise(3, 0, C(50, 42, 38), 13, 1004L); frame(3, 0, C(95, 54, 34), C(38, 34, 31))
+        g.color = C(16, 16, 16); g.fillRect(100, 6, 20, 21)
+        for (int i = 0; i < 4; i++) { g.color = C(205, 72 + i * 15, 28); g.fillRect(103 + i * 4, 10, 2, 12) }
+        g.color = steel; g.drawRect(101, 7, 18, 18)
+
+        noise(4, 0, C(42, 37, 34), 12, 1005L); frame(4, 0, C(77, 45, 33), C(34, 32, 31))
+        g.color = C(14, 14, 15)
+        for (int yy = 7; yy < 27; yy += 4) g.fillRect(133, yy, 22, 2)
+
+        noise(5, 0, C(57, 42, 34), 12, 1006L); frame(5, 0, C(87, 48, 31), C(40, 34, 30))
+        g.color = C(221, 165, 55); int[] xs = [171, 181, 191]; int[] ys = [8, 25, 8];
+        g.fillPolygon(xs, ys, 3)
+        g.color = C(37, 31, 22); g.fillRect(180, 12, 2, 7); g.fillRect(180, 21, 2, 2)
+
+        // Locker: UV 12..14, row 0.
+        noise(6, 0, C(54, 48, 43), 13, 1010L); frame(6, 0, C(79, 48, 35), C(43, 40, 38))
+        g.color = C(18,18,19); for (int yy = 7; yy < 16; yy += 3) g.fillRect(197, yy, 18, 1)
+        g.color = C(88, 58, 39); g.fillRect(197, 18, 18, 9)
+        g.color = C(140, 92, 52); g.fillRect(201, 20, 2, 5)
+
+        // Pallet: UV 14..16, row 0.
+        noise(7, 0, darkWood, 18, 1011L)
+        for (int yy = 3; yy < 31; yy += 7) {
+            g.color = wood; g.fillRect(226, yy, 28, 5)
+            g.color = C(136, 83, 37); g.fillRect(226, yy, 28, 1)
+            g.color = C(44, 27, 18); g.fillRect(230, yy + 2, 2, 2); g.fillRect(248, yy + 2, 2, 2)
+        }
+        g.color = blood; g.fillRect(235, 11, 13, 2); g.fillRect(241, 19, 10, 2)
+
+        // Trap tiles: row 1, x 1..3.
+        noise(1, 1, C(38, 34, 32), 12, 1101L); frame(1, 1, C(71, 42, 31), C(31, 29, 28))
+        g.color = steel; g.drawOval(39, 38, 18, 18); g.drawOval(42, 41, 12, 12)
+        g.color = blood; g.fillRect(46, 45, 5, 4)
+
+        noise(2, 1, C(35, 32, 31), 12, 1102L); frame(2, 1, C(76, 44, 31), C(30, 29, 28))
+        g.color = C(115, 109, 103)
+        for (int i = 0; i < 7; i++) {
+            int x = 67 + i * 4
+            g.fillPolygon([x, x + 2, x + 4] as int[], [57, 43, 57] as int[], 3)
+        }
+        g.color = blood; g.fillRect(70, 56, 20, 2)
+
+        noise(3, 1, C(40, 35, 31), 12, 1103L); frame(3, 1, C(84, 47, 31), C(30, 28, 27))
+        g.color = steel
+        for (int i = 0; i < 6; i++) { g.drawOval(101 + i * 4, 45, 7, 5) }
+        g.color = C(24, 23, 22); g.fillRect(99, 51, 25, 3)
+
+        // Item tiles: row 2.
+        noise(0, 2, C(105, 26, 24), 14, 1201L)
+        g.color = C(58, 17, 17); g.fillRect(3, 69, 26, 19)
+        g.color = C(196, 41, 36); g.fillRect(5, 71, 22, 14)
+        g.color = steel; g.fillRect(7, 67, 18, 3); g.fillRect(8, 83, 16, 2)
+        g.color = C(225, 221, 204); g.fillRect(13, 76, 6, 2); g.fillRect(15, 74, 2, 6)
+
+        noise(1, 2, C(92, 45, 31), 14, 1202L)
+        g.color = C(73, 37, 27); g.fillRect(35, 69, 26, 18)
+        g.color = C(116, 63, 36); g.fillRect(38, 72, 20, 12)
+        g.color = C(68, 62, 58); g.fillRect(39, 68, 18, 3)
+        g.color = blood; g.fillRect(42, 76, 14, 3)
+
+        noise(2, 2, C(42, 38, 36), 10, 1203L)
+        g.color = C(31, 31, 32); g.fillRect(67, 68, 25, 19)
+        g.color = steel; g.fillRect(70, 71, 3, 12); g.fillRect(77, 70, 3, 14); g.fillRect(84, 72, 3, 10)
+        g.color = C(176, 48, 33); g.fillRect(70, 69, 3, 4); g.fillRect(77, 68, 3, 5)
+
+        noise(3, 2, C(128, 25, 27), 12, 1204L)
+        g.color = C(171, 30, 31); g.fillRect(99, 69, 25, 19)
+        g.color = C(230, 223, 203); g.fillRect(108, 73, 7, 11); g.fillRect(106, 75, 11, 7)
+        g.color = darkSteel; g.drawRect(99, 69, 24, 18)
+
+        noise(4, 2, C(34, 35, 37), 10, 1205L)
+        g.color = black; g.fillRect(131, 73, 24, 10)
+        g.color = C(92, 90, 88); g.fillRect(135, 70, 15, 16)
+        g.color = C(244, 228, 158); g.fillOval(147, 72, 7, 7)
+        g.color = C(255, 246, 194, 170); g.fillRect(154, 73, 5, 5)
+
+        noise(5, 2, C(69, 43, 27), 12, 1206L)
+        g.color = wood; g.fillRect(170, 68, 5, 20)
+        g.color = C(91, 54, 31); g.fillOval(165, 72, 16, 14)
+        g.color = steel; for (int i = 0; i < 5; i++) g.fillRect(164 + i * 4, 71 + (i % 2) * 7, 2, 5)
+        g.color = blood; g.fillRect(167, 78, 12, 3)
+
+        noise(6, 2, C(67, 65, 63), 10, 1207L)
+        g.color = C(106, 104, 101); g.fillPolygon([197, 219, 219, 203] as int[], [84, 68, 73, 88] as int[], 4)
+        g.color = C(210, 205, 190); g.drawLine(201, 85, 217, 70)
+        g.color = darkWood; g.fillRect(194, 83, 10, 4)
+        g.color = blood; g.fillRect(204, 79, 12, 3); g.fillRect(211, 74, 7, 2)
+
+        // Documents and UV lamp: row 3.
+        noise(0, 3, paper, 8, 1301L)
+        g.color = paperDark; g.drawRect(4, 99, 24, 25)
+        g.color = C(75, 69, 56); for (int yy = 103; yy < 120; yy += 4) g.fillRect(8, yy, 15 + (yy % 3), 1)
+        g.color = blood; g.fillRect(8, 119, 11, 2)
+
+        noise(1, 3, C(190, 181, 148), 8, 1302L)
+        g.color = paperDark; g.drawRect(36, 99, 24, 25)
+        g.color = C(70, 65, 54); g.fillRect(40, 103, 15, 1); g.fillRect(40, 107, 17, 1); g.fillRect(40, 111, 12, 1)
+        g.color = red; g.fillRect(45, 116, 8, 5)
+
+        noise(2, 3, C(185, 174, 140), 9, 1303L)
+        g.color = paperDark; g.drawRect(68, 99, 24, 25)
+        g.color = blood; g.setStroke(new java.awt.BasicStroke(2f)); g.drawLine(72, 103, 88, 120); g.drawLine(88, 103, 72, 120); g.setStroke(new java.awt.BasicStroke(1f))
+
+        noise(3, 3, C(40, 45, 48), 8, 1304L)
+        g.color = C(64, 67, 70); g.fillRect(99, 104, 25, 14)
+        g.color = red; g.fillRect(102, 107, 6, 8)
+        g.color = C(207, 198, 169); g.fillRect(110, 108, 10, 2); g.fillRect(110, 112, 8, 2)
+        g.color = C(25, 25, 26); g.drawRect(99, 104, 24, 13)
+
+        noise(4, 3, C(47, 34, 52), 10, 1305L)
+        g.color = purple; g.fillRect(132, 107, 22, 8)
+        g.color = C(180, 77, 205); g.fillRect(136, 104, 12, 3)
+        g.color = darkSteel; g.fillRect(138, 115, 8, 7)
+        g.color = C(219, 152, 238); g.fillRect(134, 108, 18, 2)
+
+        // A few extra generic tiles to avoid black checkerboards if a model is extended later.
+        for (int tx = 0; tx < 8; tx++) {
+            for (int ty = 4; ty < 8; ty++) {
+                noise(tx, ty, C(42 + tx * 3, 36 + ty * 2, 33 + tx), 10, 2000L + tx * 31 + ty)
+                frame(tx, ty, C(72, 45, 35), C(39, 35, 33))
+            }
+        }
+
+        g.dispose()
 
         def outputFile = new File(destinationDir, "assets/hunt_generators/textures/block/detail_atlas.png")
         outputFile.parentFile.mkdirs()
-        if (!javax.imageio.ImageIO.write(rgbaImage, "png", outputFile)) {
-            throw new GradleException("Could not write detailed texture atlas")
+        if (!javax.imageio.ImageIO.write(image, "png", outputFile)) {
+            throw new GradleException("Could not write generated detailed texture atlas")
         }
     }
 }
