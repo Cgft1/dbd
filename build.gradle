@@ -22,8 +22,40 @@ dependencies {
 
 processResources {
     inputs.property "version", project.version
+    inputs.file("src/main/resources/assets/hunt_generators/textures/block/detail_atlas.png.b64")
+    exclude("**/*.b64")
+
     filesMatching("fabric.mod.json") {
         expand "version": project.version
+    }
+
+    doLast {
+        def encoded = file("src/main/resources/assets/hunt_generators/textures/block/detail_atlas.png.b64")
+            .getText("UTF-8")
+            .replaceAll("\\s", "")
+        byte[] decoded = java.util.Base64.getDecoder().decode(encoded)
+        def sourceImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(decoded))
+        if (sourceImage == null) {
+            throw new GradleException("Could not decode detailed texture atlas source")
+        }
+
+        def rgbaImage = new java.awt.image.BufferedImage(
+            sourceImage.getWidth(),
+            sourceImage.getHeight(),
+            java.awt.image.BufferedImage.TYPE_INT_ARGB
+        )
+        def graphics = rgbaImage.createGraphics()
+        try {
+            graphics.drawImage(sourceImage, 0, 0, null)
+        } finally {
+            graphics.dispose()
+        }
+
+        def outputFile = new File(destinationDir, "assets/hunt_generators/textures/block/detail_atlas.png")
+        outputFile.parentFile.mkdirs()
+        if (!javax.imageio.ImageIO.write(rgbaImage, "png", outputFile)) {
+            throw new GradleException("Could not write detailed texture atlas")
+        }
     }
 }
 
