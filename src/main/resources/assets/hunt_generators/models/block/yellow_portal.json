@@ -1,4 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": { "all": "minecraft:block/yellow_stained_glass" }
-}
+{"parent":"minecraft:block/block","textures":{"atlas":"hunt_generators:block/detail_atlas","particle":"minecraft:block/yellow_stained_glass"},"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{"north":{"uv":[10,2,12,4],"texture":"#atlas"},"south":{"uv":[10,2,12,4],"texture":"#atlas"},"east":{"uv":[10,2,12,4],"texture":"#atlas"},"west":{"uv":[10,2,12,4],"texture":"#atlas"},"up":{"uv":[10,2,12,4],"texture":"#atlas"},"down":{"uv":[10,2,12,4],"texture":"#atlas"}}}]}
